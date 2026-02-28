@@ -1124,34 +1124,106 @@ async function isbnSearch(){
 
 /* Kaynak tanımları */
 const ISBN_SOURCES = [
+  /* ── 1. Google Books ─────────────────────────────────────────
+     Eski uygulamadan öğrenilen: isbn: prefix + direkt ISBN +
+     sadece numerik + tire/boşluk temizlenmiş → her varyasyon dene
+     totalItems > 0 kontrolü, ilk 5 item içinde en iyisini seç   */
   {
     id: 'google',
     name: 'Google Books',
     flag: '🔍',
     fetch: async (isbn) => {
-      // Hem ISBN hem de title araması için geniş parametre
-      const urls = [
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1&langRestrict=`,
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=3`
+      const clean = isbn.replace(/[^0-9X]/gi,'');
+      // Eski uygulamanın yöntemi: birden fazla query varyasyonu
+      const queries = [
+        `isbn:${clean}`,
+        `isbn:${isbn}`,
+        clean,
+        isbn
       ];
-      for(const url of urls){
+      for(const q of queries){
         try{
-          const r = await _fetchTimeout(url, 6000);
+          const r = await _fetchTimeout(
+            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=5`,
+            7000
+          );
           const d = await r.json();
-          const it = d.items?.[0]?.volumeInfo;
-          if(it && it.title){
-            const cover = (it.imageLinks?.extraLarge||it.imageLinks?.large||it.imageLinks?.medium||it.imageLinks?.thumbnail||it.imageLinks?.smallThumbnail||'').replace('http:','https:');
+          if(d.totalItems > 0 && d.items?.length){
+            // İlk 5 item içinde en iyi eşleşmeyi bul
+            for(const item of d.items){
+              const v = item.volumeInfo;
+              if(!v?.title) continue;
+              // ISBN eşleşmesi var mı kontrol et
+              const isbns = [...(v.industryIdentifiers||[])].map(x=>x.identifier?.replace(/[^0-9X]/gi,''));
+              const isMatch = isbns.includes(clean) || isbns.includes(isbn) || d.totalItems <= 3;
+              if(isMatch || q.startsWith('isbn:')){
+                const cover = (
+                  v.imageLinks?.extraLarge ||
+                  v.imageLinks?.large      ||
+                  v.imageLinks?.medium     ||
+                  v.imageLinks?.thumbnail  ||
+                  v.imageLinks?.smallThumbnail || ''
+                ).replace('http:','https:').replace('&edge=curl','').replace('zoom=1','zoom=3');
+                return {
+                  title:    v.title,
+                  author:   (v.authors||[]).join(', '),
+                  publisher:v.publisher||'',
+                  year:     (v.publishedDate||'').slice(0,4),
+                  pages:    v.pageCount?.toString()||'',
+                  coverUrl: cover,
+                  genre:    (v.categories||[]).join(', '),
+                  desc:     v.description||'',
+                  lang:     v.language||'',
+                  source:   'Google Books'
+                };
+              }
+            }
+            // Eşleşme bulunamazsa yine de ilkini döndür
+            const v = d.items[0].volumeInfo;
+            const cover = (v.imageLinks?.extraLarge||v.imageLinks?.large||v.imageLinks?.medium||v.imageLinks?.thumbnail||'')
+              .replace('http:','https:').replace('zoom=1','zoom=3');
             return {
-              title:    it.title,
-              author:   (it.authors||[]).join(', '),
-              publisher:it.publisher||'',
-              year:     (it.publishedDate||'').slice(0,4),
-              pages:    it.pageCount?.toString()||'',
+              title:    v.title||'',
+              author:   (v.authors||[]).join(', '),
+              publisher:v.publisher||'',
+              year:     (v.publishedDate||'').slice(0,4),
+              pages:    v.pageCount?.toString()||'',
               coverUrl: cover,
-              genre:    (it.categories||[]).join(', '),
-              desc:     it.description||'',
-              lang:     it.language||'',
+              genre:    (v.categories||[]).join(', '),
               source:   'Google Books'
+            };
+          }
+        }catch(e){ console.warn('Google Books query failed:', q, e.message); }
+      }
+      return null;
+    }
+  },
+
+  /* ── 2. Open Library (Data API) ─────────────────────────── */
+  {
+    id: 'openlibrary',
+    name: 'Open Library',
+    flag: '📚',
+    fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
+      for(const id of [clean, isbn]){
+        try{
+          const r = await _fetchTimeout(
+            `https://openlibrary.org/api/books?bibkeys=ISBN:${id}&format=json&jscmd=data`,
+            7000
+          );
+          const d = await r.json();
+          const x = d[`ISBN:${id}`];
+          if(x?.title){
+            return {
+              title:    x.title,
+              author:   (x.authors||[]).map(a=>a.name).join(', '),
+              publisher:(x.publishers||[]).map(p=>p.name).join(', '),
+              year:     (x.publish_date||'').match(/\d{4}/)?.[0]||'',
+              pages:    x.number_of_pages?.toString()||'',
+              coverUrl: x.cover?.large||x.cover?.medium||x.cover?.small||'',
+              genre:    (x.subjects||[]).slice(0,3).map(s=>typeof s==='string'?s:s.name).join(', '),
+              source:   'Open Library'
             };
           }
         }catch{}
@@ -1159,76 +1231,173 @@ const ISBN_SOURCES = [
       return null;
     }
   },
-  {
-    id: 'openlibrary',
-    name: 'Open Library',
-    flag: '📚',
-    fetch: async (isbn) => {
-      try{
-        const r = await _fetchTimeout(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, 7000);
-        const d = await r.json();
-        const x = d[`ISBN:${isbn}`];
-        if(x && x.title){
-          return {
-            title:    x.title,
-            author:   (x.authors||[]).map(a=>a.name).join(', '),
-            publisher:(x.publishers||[]).map(p=>p.name).join(', '),
-            year:     (x.publish_date||'').match(/\d{4}/)?.[0]||'',
-            pages:    x.number_of_pages?.toString()||'',
-            coverUrl: x.cover?.large||x.cover?.medium||x.cover?.small||'',
-            genre:    (x.subjects||[]).slice(0,2).map(s=>s.name||s).join(', '),
-            desc:     x.excerpts?.[0]?.text||'',
-            source:   'Open Library'
-          };
-        }
-      }catch{}
-      return null;
-    }
-  },
+
+  /* ── 3. Open Library Search API ─────────────────────────── */
   {
     id: 'ol_search',
     name: 'Open Library Search',
     flag: '🔎',
     fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
+      for(const id of [clean, isbn]){
+        try{
+          const r = await _fetchTimeout(
+            `https://openlibrary.org/search.json?isbn=${id}&limit=3`,
+            7000
+          );
+          const d = await r.json();
+          const doc = d.docs?.[0];
+          if(doc?.title){
+            const coverId = doc.cover_i || doc.cover_edition_key;
+            const coverUrl = coverId
+              ? (typeof coverId === 'number'
+                  ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
+                  : `https://covers.openlibrary.org/b/olid/${coverId}-L.jpg`)
+              : '';
+            return {
+              title:    doc.title,
+              author:   (doc.author_name||[]).join(', '),
+              publisher:(doc.publisher||[]).slice(-1)[0]||'',
+              year:     doc.first_publish_year?.toString()||'',
+              pages:    doc.number_of_pages_median?.toString()||'',
+              coverUrl,
+              genre:    (doc.subject||[]).slice(0,3).join(', '),
+              source:   'Open Library Search'
+            };
+          }
+        }catch{}
+      }
+      return null;
+    }
+  },
+
+  /* ── 4. Open Library Works (kitap bazlı detay) ───────────── */
+  {
+    id: 'ol_works',
+    name: 'Open Library Works',
+    flag: '📗',
+    fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
       try{
-        const r = await _fetchTimeout(`https://openlibrary.org/search.json?isbn=${isbn}&limit=1`, 7000);
-        const d = await r.json();
-        const doc = d.docs?.[0];
-        if(doc && doc.title){
-          const coverId = doc.cover_i;
+        // Önce edition bul
+        const r = await _fetchTimeout(
+          `https://openlibrary.org/isbn/${clean}.json`,
+          6000
+        );
+        const ed = await r.json();
+        if(ed?.title){
+          const workKey = ed.works?.[0]?.key;
+          let genre = '';
+          if(workKey){
+            try{
+              const rw = await _fetchTimeout(`https://openlibrary.org${workKey}.json`,4000);
+              const w  = await rw.json();
+              genre = (w.subjects||[]).slice(0,3).join(', ');
+            }catch{}
+          }
+          const coverId = ed.covers?.[0];
           return {
-            title:    doc.title,
-            author:   (doc.author_name||[]).join(', '),
-            publisher:(doc.publisher||[]).slice(-1)[0]||'',
-            year:     doc.first_publish_year?.toString()||'',
-            pages:    doc.number_of_pages_median?.toString()||'',
+            title:    ed.title,
+            author:   '',  // edition'da author key var, join bırak
+            publisher:(ed.publishers||[]).join(', '),
+            year:     (ed.publish_date||'').match(/\d{4}/)?.[0]||'',
+            pages:    ed.number_of_pages?.toString()||'',
             coverUrl: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : '',
-            genre:    (doc.subject||[]).slice(0,2).join(', '),
-            source:   'Open Library Search'
+            genre,
+            source:   'Open Library Works'
           };
         }
       }catch{}
       return null;
     }
   },
+
+  /* ── 5. Google Books – Türkçe öncelikli ─────────────────── */
+  {
+    id: 'google_tr',
+    name: 'Google Books (TR)',
+    flag: '🇹🇷',
+    fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
+      try{
+        const r = await _fetchTimeout(
+          `https://www.googleapis.com/books/v1/volumes?q=isbn:${clean}&langRestrict=tr&maxResults=3`,
+          6000
+        );
+        const d = await r.json();
+        if(d.totalItems > 0 && d.items?.[0]){
+          const v = d.items[0].volumeInfo;
+          if(v?.title){
+            const cover = (v.imageLinks?.extraLarge||v.imageLinks?.large||v.imageLinks?.medium||v.imageLinks?.thumbnail||'')
+              .replace('http:','https:').replace('zoom=1','zoom=3');
+            return {
+              title:    v.title,
+              author:   (v.authors||[]).join(', '),
+              publisher:v.publisher||'',
+              year:     (v.publishedDate||'').slice(0,4),
+              pages:    v.pageCount?.toString()||'',
+              coverUrl: cover,
+              genre:    (v.categories||[]).join(', '),
+              source:   'Google Books TR'
+            };
+          }
+        }
+      }catch{}
+      return null;
+    }
+  },
+
+  /* ── 6. WorldCat xISBN / Open WorldCat ──────────────────── */
+  {
+    id: 'worldcat',
+    name: 'WorldCat',
+    flag: '🌍',
+    fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
+      try{
+        // xISBN servisi – JSON endpoint
+        const r = await _fetchTimeout(
+          `https://xisbn.worldcat.org/webservices/xid/isbn/${clean}?method=getMetadata&format=json&fl=*`,
+          6000
+        );
+        const d = await r.json();
+        const item = d.list?.[0];
+        if(item?.title){
+          return {
+            title:    item.title,
+            author:   (item.author||'').replace(/\//g,'').trim(),
+            publisher:(item.publisher||[]).join?.(', ') || item.publisher || '',
+            year:     item.year||'',
+            pages:    '',
+            coverUrl: '',
+            source:   'WorldCat'
+          };
+        }
+      }catch{}
+      return null;
+    }
+  },
+
+  /* ── 7. ISBNdb (ücretsiz endpoint) ──────────────────────── */
   {
     id: 'isbndb',
     name: 'ISBNdb',
     flag: '🗃️',
     fetch: async (isbn) => {
-      // ISBNdb ücretsiz uç nokta (API key gerekmez bu endpoint için)
+      const clean = isbn.replace(/[^0-9X]/gi,'');
       try{
-        const r = await _fetchTimeout(`https://api2.isbndb.com/book/${isbn}`, 5000);
+        const r = await _fetchTimeout(`https://api2.isbndb.com/book/${clean}`, 5000);
+        if(!r.ok) return null;
         const d = await r.json();
         const b = d.book;
-        if(b && b.title){
+        if(b?.title){
           return {
             title:    b.title,
             author:   (b.authors||[]).join(', '),
             publisher:b.publisher||'',
             year:     (b.date_published||'').slice(0,4),
             pages:    b.pages?.toString()||'',
-            coverUrl: b.image||'',
+            coverUrl: b.image||b.cover||'',
             genre:    (b.subjects||[]).slice(0,2).join(', '),
             source:   'ISBNdb'
           };
@@ -1237,96 +1406,109 @@ const ISBN_SOURCES = [
       return null;
     }
   },
+
+  /* ── 8. Library of Congress ──────────────────────────────── */
   {
-    id: 'worldcat',
-    name: 'WorldCat',
-    flag: '🌍',
+    id: 'loc',
+    name: 'Library of Congress',
+    flag: '🏛️',
     fetch: async (isbn) => {
-      try{
-        // WorldCat Linked Data (ücretsiz, CORS destekler)
-        const r = await _fetchTimeout(`https://www.worldcat.org/oclc/isbn/${isbn}?format=json`, 6000);
-        const d = await r.json();
-        if(d['@graph']){
-          const item = d['@graph'].find(n => n['schema:name']);
-          if(item && item['schema:name']){
-            return {
-              title:    Array.isArray(item['schema:name']) ? item['schema:name'][0] : item['schema:name'],
-              author:   '',
-              source:   'WorldCat'
-            };
-          }
-        }
-      }catch{}
-      return null;
-    }
-  },
-  {
-    id: 'opds_tr',
-    name: 'Milli Kütüphane (TR)',
-    flag: '🇹🇷',
-    fetch: async (isbn) => {
-      // Milli Kütüphane OPDS / SRU endpoint
+      const clean = isbn.replace(/[^0-9X]/gi,'');
       try{
         const r = await _fetchTimeout(
-          `https://www.mkutup.gov.tr/tr/Sayfalar/mksearch.aspx?type=isbn&isbn=${isbn}`,
+          `https://www.loc.gov/books/?q=${clean}&fo=json&count=1`,
           6000
         );
-        // HTML dönebilir, başlık parse et
-        const txt = await r.text();
-        const titleMatch = txt.match(/<title[^>]*>([^<]{5,})<\/title>/i);
-        const parsed = titleMatch?.[1]?.replace(/\s*[-|–].*$/,'').trim()||'';
-        if(parsed && parsed.length>3 && !parsed.toLowerCase().includes('hata') && !parsed.toLowerCase().includes('error')){
-          return { title: parsed, source: 'Milli Kütüphane TR' };
+        const d = await r.json();
+        const item = d.results?.[0];
+        if(item?.title){
+          return {
+            title:    Array.isArray(item.title)?item.title[0]:item.title,
+            author:   Array.isArray(item.contributor)?item.contributor[0]:item.contributor||'',
+            publisher:Array.isArray(item.publisher)?item.publisher[0]:item.publisher||'',
+            year:     (item.date||'').slice(0,4),
+            coverUrl: item.image_url?.[0]||'',
+            source:   'Library of Congress'
+          };
+        }
+      }catch{}
+      // Fallback: catalog SRU
+      try{
+        const r2 = await _fetchTimeout(
+          `https://catalog.loc.gov/vwebv/search?searchArg=${clean}&searchCode=ISBN&searchType=1&recCount=1&format=json`,
+          5000
+        );
+        const d2 = await r2.json();
+        const rec = d2?.records?.[0];
+        if(rec?.title){
+          return { title:rec.title, author:rec.author||'', source:'Library of Congress' };
         }
       }catch{}
       return null;
     }
   },
+
+  /* ── 9. Milli Kütüphane TR (SRU/Z39.50 JSON proxy) ─────── */
   {
-    id: 'bn',
-    name: 'Barnes & Noble',
-    flag: '📖',
+    id: 'mk_tr',
+    name: 'Milli Kütüphane TR',
+    flag: '🇹🇷',
     fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
+      // Türkiye Milli Kütüphane kataloğu CORS destekli endpoint
       try{
-        const r = await _fetchTimeout(`https://api.barnesandnoble.com/v1/product?ean=${isbn}&key=APIkey`, 5000);
+        const r = await _fetchTimeout(
+          `https://katalog.mkutup.gov.tr/rest/search?isbn=${clean}&format=json`,
+          6000
+        );
         const d = await r.json();
-        if(d.product?.title){
-          return {
-            title:    d.product.title,
-            author:   d.product.contributorList?.map(c=>c.name).join(', ')||'',
-            publisher:d.product.publisher||'',
-            coverUrl: d.product.imageUrl||'',
-            source:   'Barnes & Noble'
+        const item = d.items?.[0]||d.records?.[0]||d[0];
+        if(item){
+          const t = item.title||item.baslik||item.ad||'';
+          if(t) return {
+            title:    t,
+            author:   item.author||item.yazar||'',
+            publisher:item.publisher||item.yayinevi||'',
+            year:     item.year||item.yil||'',
+            source:   'Milli Kütüphane TR'
           };
         }
       }catch{}
       return null;
     }
   },
+
+  /* ── 10. Gutenberg (açık kaynak kitaplar) ────────────────── */
   {
-    id: 'loc',
-    name: 'Library of Congress',
-    flag: '🏛️',
+    id: 'gutenberg',
+    name: 'Project Gutenberg',
+    flag: '🏺',
     fetch: async (isbn) => {
+      const clean = isbn.replace(/[^0-9X]/gi,'');
       try{
-        const r = await _fetchTimeout(`https://lccn.loc.gov/isbn/${isbn}/mads.json`, 5000);
+        const r = await _fetchTimeout(
+          `https://gutendex.com/books/?search=${clean}&topic=`,
+          5000
+        );
         const d = await r.json();
-        const title = d?.['@graph']?.find(n=>n['@type']?.includes('mads:Title'))?.['mads:authoritativeLabel'];
-        if(title){
-          return { title, source:'Library of Congress' };
+        const book = d.results?.find(b=>
+          b.bookshelves?.some(s=>s.includes(clean)) ||
+          d.results?.[0]
+        ) || d.results?.[0];
+        if(book?.title){
+          return {
+            title:    book.title,
+            author:   book.authors?.map(a=>a.name).join(', ')||'',
+            coverUrl: book.formats?.['image/jpeg']||'',
+            source:   'Project Gutenberg'
+          };
         }
-      }catch{}
-      // Fallback: LoC catalog search
-      try{
-        const r2 = await _fetchTimeout(`https://catalog.loc.gov/vwebv/search?searchArg=${isbn}&searchCode=ISBN&searchType=1&recCount=1&format=json`, 5000);
-        const d2 = await r2.json();
-        const rec = d2?.records?.[0];
-        if(rec?.title){ return {title:rec.title, author:rec.author||'', source:'Library of Congress'}; }
       }catch{}
       return null;
     }
   }
 ];
+
 
 /* Timeout destekli fetch */
 function _fetchTimeout(url, ms=6000){
@@ -1403,9 +1585,10 @@ async function fetchISBN(isbn){
       if(result && result.title && result.title.trim().length > 1){
         addSrcRow(src,'ok','✓ Bulundu');
         found.push({...result, isbn});
-        // İlk 2 başarılı sonuçtan sonra geri kalan kaynakları atla (hız için)
-        if(found.length >= 2) {
-          // Kalan kaynakları "atlandı" olarak işaretle
+        // Google Books ilk kaynakta bulduysa yeter (eski uygulama mantığı)
+        // Diğer kaynaklarda: 3 farklı kaynaktan sonuç gelince dur
+        const stopEarly = (src.id === 'google' && found.length >= 1) || found.length >= 3;
+        if(stopEarly) {
           const remaining = ISBN_SOURCES.slice(ISBN_SOURCES.indexOf(src)+1);
           remaining.forEach(s=>addSrcRow(s,'skip'));
           break;
@@ -1440,7 +1623,7 @@ async function fetchISBN(isbn){
     <div style="margin-top:.75rem;background:rgba(78,203,135,.06);border:1px solid rgba(78,203,135,.2);border-radius:var(--r-md);padding:1rem">
       <div style="display:flex;align-items:center;gap:.5rem;color:var(--green);font-weight:600;font-size:.88rem;margin-bottom:.85rem">
         <i class="fa-solid fa-check-circle"></i> Kitap bulundu!
-        <span style="font-size:.72rem;color:var(--muted);font-weight:400">via ${book.source||'?'}</span>
+        <span style="font-size:.72rem;color:var(--muted);font-weight:400">via ${book.sources||book.source||'?'}</span>
       </div>
       <div class="res-row">
         ${book.coverUrl
