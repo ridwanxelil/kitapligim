@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Biblios – Kişisel Kitaplığım</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%231a1a2e'/%3E%3Cpath d='M25 20h35c5.5 0 10 4.5 10 10v42c0 5.5-4.5 10-10 10H25V20z' fill='%23c8a96e'/%3E%3Cpath d='M25 20v62H20c-2.8 0-5-2.2-5-5V25c0-2.8 2.2-5 5-5h5z' fill='%23a8893e'/%3E%3Crect x='33' y='35' width='26' height='3' rx='1.5' fill='%231a1a2e' opacity='.5'/%3E%3Crect x='33' y='43' width='20' height='3' rx='1.5' fill='%231a1a2e' opacity='.5'/%3E%3Crect x='33' y='51' width='23' height='3' rx='1.5' fill='%231a1a2e' opacity='.5'/%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -363,6 +364,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff-b);font-size:15
           <div class="cam-ph" id="camPh">
             <i class="fa-solid fa-camera"></i>
             <p>Kamerayı başlatmak için aşağıdaki butona tıklayın</p>
+            <p style="font-size:.72rem;color:rgba(139,133,119,.6);margin-top:.25rem">Chrome / Edge / Android önerilir</p>
           </div>
           <div id="cam-box">
             <video id="cam-video" autoplay muted playsinline></video>
@@ -930,7 +932,7 @@ const FEATURES=[
   {icon:'fa-pen',cls:'ic-yellow',title:'Kitap Düzenleme',desc:'İstediğiniz zaman kitap bilgilerini güncelleyin.'},
 ];
 const UPDATES=[
-  {date:'2025-03-01',ver:'v1.3',title:'Barkod & ISBN Arama',desc:'Quagga2 barkod motoru entegrasyonu. ISBN girişi ile doğrudan internet araması. Timeline & özellikler sayfası eklendi.',icon:'fa-barcode',cls:'ic-gold',ccls:'c-gold'},
+  {date:'2025-03-01',ver:'v1.3',title:'Barkod & ISBN Arama',desc:'BarcodeDetector API ile kamera barkod okuma. ISBN girişi ile Open Library & Google Books araması. Timeline & özellikler sayfası eklendi.',icon:'fa-barcode',cls:'ic-gold',ccls:'c-gold'},
   {date:'2025-02-15',ver:'v1.2',title:'Duplikat Kontrolü & Liste Görünümü',desc:'Aynı ISBN ile tekrar ekleme uyarısı. Grid/Liste görünüm toggle eklendi.',icon:'fa-triangle-exclamation',cls:'ic-yellow',ccls:'c-gold'},
   {date:'2025-02-01',ver:'v1.1',title:'İstatistikler & Puanlama',desc:'5 yıldız puanlama, okuma istatistikleri paneli ve durum filtreleme eklendi.',icon:'fa-chart-simple',cls:'ic-blue',ccls:'c-blue'},
   {date:'2025-01-15',ver:'v1.0',title:'İlk Sürüm',desc:'Kitap ekleme, düzenleme, silme ve localStorage ile kalıcı depolama özelliği ile ilk sürüm yayınlandı.',icon:'fa-rocket',cls:'ic-green',ccls:'c-green'},
@@ -1009,113 +1011,156 @@ function renderActLog(){
 }
 
 /* ============================================================
-   SCANNER (Quagga2 via unpkg)
+   SCANNER – BarcodeDetector API (built-in, CDN yok)
    ============================================================ */
-let _camActive=false;
-let _lastCode='', _lastTs=0;
+let _camActive = false;
+let _stream    = null;
+let _scanLoop  = null;
+let _lastCode  = '';
+let _lastTs    = 0;
+let _detector  = null;
+
+/* BarcodeDetector desteği kontrol et */
+async function initDetector(){
+  if(_detector) return true;
+  if(!('BarcodeDetector' in window)){
+    return false;
+  }
+  try{
+    _detector = new BarcodeDetector({
+      formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']
+    });
+    return true;
+  }catch(e){ return false; }
+}
 
 function switchTab(t){
-  document.getElementById('tab-cam').classList.toggle('active',t==='cam');
-  document.getElementById('tab-isbn').classList.toggle('active',t==='isbn');
-  document.getElementById('camTab').style.display=t==='cam'?'block':'none';
-  document.getElementById('isbnTab').style.display=t==='isbn'?'block':'none';
-  document.getElementById('scan-result').innerHTML='';
-  document.getElementById('scan-result').style.display='none';
+  document.getElementById('tab-cam').classList.toggle('active', t==='cam');
+  document.getElementById('tab-isbn').classList.toggle('active', t==='isbn');
+  document.getElementById('camTab').style.display   = t==='cam'?'block':'none';
+  document.getElementById('isbnTab').style.display  = t==='isbn'?'block':'none';
+  const rd = document.getElementById('scan-result');
+  rd.innerHTML=''; rd.style.display='none';
   if(t!=='cam') camStop();
 }
 
-function camStart(){
-  if(typeof Quagga==='undefined'){toast('Barkod kütüphanesi yükleniyor, lütfen bekleyin…','warning');loadQuagga(()=>camStart());return}
-  navigator.mediaDevices.getUserMedia({video:true}).then(()=>{
-    document.getElementById('camPh').style.display='none';
-    document.getElementById('cam-box').style.display='block';
-    document.getElementById('btnStart').style.display='none';
-    document.getElementById('btnStop').style.display='inline-flex';
-    _camActive=true; _lastCode=''; _lastTs=0;
-    Quagga.init({
-      inputStream:{name:'Live',type:'LiveStream',target:document.getElementById('cam-video'),constraints:{width:{ideal:1280},height:{ideal:720},facingMode:'environment'}},
-      decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','upc_reader']},
-      locate:true,numOfWorkers:0
-    },err=>{
-      if(err){toast('Kamera başlatılamadı: '+(err.message||err),'error');camResetUI();return}
-      Quagga.start();
+async function camStart(){
+  const supported = await initDetector();
+  if(!supported){
+    // BarcodeDetector yok → ISBN sekmesine yönlendir
+    toast('Bu tarayıcı kamera barkod okumasını desteklemiyor (Chrome/Edge gerekli). ISBN sekmesini kullanın.','warning',6000);
+    switchTab('isbn');
+    return;
+  }
+  try{
+    _stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }
     });
-    Quagga.onDetected(async res=>{
-      if(!_camActive)return;
-      const code=res?.codeResult?.code;
-      if(!code)return;
-      const now=Date.now();
-      if(code===_lastCode&&now-_lastTs<1800)return;
-      _lastCode=code; _lastTs=now;
-      const clean=code.replace(/[^0-9X]/gi,'');
-      if(clean.length===10||clean.length===13){
-        _camActive=false; camStop();
-        toast('Barkod okundu: '+clean,'info');
-        await fetchISBN(clean);
+  }catch(e){
+    toast('Kamera izni reddedildi veya kullanılamıyor.','error');
+    return;
+  }
+  const video = document.getElementById('cam-video');
+  video.srcObject = _stream;
+  await video.play();
+
+  document.getElementById('camPh').style.display      = 'none';
+  document.getElementById('cam-box').style.display    = 'block';
+  document.getElementById('btnStart').style.display   = 'none';
+  document.getElementById('btnStop').style.display    = 'inline-flex';
+  _camActive = true;
+  _lastCode  = '';
+
+  // Tarama döngüsü
+  _scanLoop = setInterval(async()=>{
+    if(!_camActive || video.readyState < 2) return;
+    try{
+      const codes = await _detector.detect(video);
+      for(const c of codes){
+        const raw   = c.rawValue;
+        const clean = raw.replace(/[^0-9X]/gi,'');
+        const now   = Date.now();
+        if((clean.length===13||clean.length===10) && (clean!==_lastCode||now-_lastTs>2000)){
+          _lastCode = clean; _lastTs = now;
+          _camActive = false;
+          camStop();
+          toast('Barkod okundu: '+clean,'info');
+          await fetchISBN(clean);
+          return;
+        }
       }
-    });
-  }).catch(()=>toast('Kamera izni reddedildi.','error'));
+    }catch{}
+  }, 300);
 }
 
 function camStop(){
-  _camActive=false;
-  try{if(typeof Quagga!=='undefined'){Quagga.offDetected();Quagga.stop()}}catch{}
+  _camActive = false;
+  if(_scanLoop){ clearInterval(_scanLoop); _scanLoop=null; }
+  if(_stream){ _stream.getTracks().forEach(t=>t.stop()); _stream=null; }
+  const video = document.getElementById('cam-video');
+  video.srcObject = null;
   camResetUI();
 }
 
 function camResetUI(){
-  document.getElementById('camPh').style.display='flex';
-  document.getElementById('cam-box').style.display='none';
-  document.getElementById('btnStart').style.display='inline-flex';
-  document.getElementById('btnStop').style.display='none';
-}
-
-function loadQuagga(cb){
-  if(typeof Quagga!=='undefined'){if(cb)cb();return}
-  const s=document.createElement('script');
-  s.src='https://unpkg.com/@ericblade/quagga2@1.4.0/lib/quagga.min.js';
-  s.onload=()=>{toast('Barkod kütüphanesi yüklendi.','success');if(cb)cb()};
-  s.onerror=()=>toast('Kütüphane yüklenemedi. İnternet bağlantınızı kontrol edin.','error');
-  document.head.appendChild(s);
+  document.getElementById('camPh').style.display    = 'flex';
+  document.getElementById('cam-box').style.display  = 'none';
+  document.getElementById('btnStart').style.display = 'inline-flex';
+  document.getElementById('btnStop').style.display  = 'none';
 }
 
 async function isbnSearch(){
-  const v=document.getElementById('isbnInp').value.trim().replace(/[^0-9X]/gi,'');
-  if(!v){toast('ISBN girin.','warning');return}
-  if(v.length!==10&&v.length!==13){toast('ISBN 10 veya 13 karakter olmalı.','error');return}
+  const v = document.getElementById('isbnInp').value.trim().replace(/[^0-9X]/gi,'');
+  if(!v){ toast('ISBN girin.','warning'); return; }
+  if(v.length!==10 && v.length!==13){ toast('ISBN 10 veya 13 karakter olmalı.','error'); return; }
   await fetchISBN(v);
 }
 
 /* Fetch book info from Open Library + Google Books */
 async function fetchISBN(isbn){
-  const rd=document.getElementById('scan-result');
-  rd.style.display='block';
-  rd.innerHTML=`<div style="display:flex;align-items:center;gap:.75rem;color:var(--muted);font-size:.86rem"><div class="spin"></div> Kitap aranıyor: <strong style="color:var(--text);font-family:monospace">${isbn}</strong></div>`;
+  const rd = document.getElementById('scan-result');
+  rd.style.display = 'block';
+  rd.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;color:var(--muted);font-size:.86rem"><div class="spin"></div> Kitap aranıyor: <strong style="color:var(--text);font-family:monospace">${isbn}</strong></div>`;
   try{
-    let book=null;
+    let book = null;
     // 1. Open Library
     try{
-      const r=await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-      const d=await r.json();
-      const k=`ISBN:${isbn}`;
+      const r = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+      const d = await r.json();
+      const k = `ISBN:${isbn}`;
       if(d[k]){
-        const x=d[k];
-        book={title:x.title||'',author:x.authors?.[0]?.name||'',publisher:x.publishers?.[0]?.name||'',year:x.publish_date?.match(/\d{4}/)?.[0]||'',pages:x.number_of_pages?.toString()||'',coverUrl:x.cover?.large||x.cover?.medium||x.cover?.small||'',isbn,status:'toread',rating:0,notes:'',genre:x.subjects?.[0]?.name||''};
+        const x = d[k];
+        book = {
+          title:    x.title||'',
+          author:   x.authors?.[0]?.name||'',
+          publisher:x.publishers?.[0]?.name||'',
+          year:     x.publish_date?.match(/\d{4}/)?.[0]||'',
+          pages:    x.number_of_pages?.toString()||'',
+          coverUrl: x.cover?.large||x.cover?.medium||x.cover?.small||'',
+          isbn, status:'toread', rating:0, notes:'', genre:x.subjects?.[0]?.name||''
+        };
       }
     }catch{}
     // 2. Google Books fallback
     if(!book||!book.title){
       try{
-        const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-        const d=await r.json();
-        const it=d.items?.[0]?.volumeInfo;
-        if(it) book={title:it.title||'',author:it.authors?.[0]||'',publisher:it.publisher||'',year:it.publishedDate?.slice(0,4)||'',pages:it.pageCount?.toString()||'',coverUrl:(it.imageLinks?.thumbnail||it.imageLinks?.smallThumbnail||'').replace('http:','https:'),isbn,status:'toread',rating:0,notes:'',genre:it.categories?.[0]||''};
+        const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        const d = await r.json();
+        const it = d.items?.[0]?.volumeInfo;
+        if(it) book = {
+          title:    it.title||'',
+          author:   it.authors?.[0]||'',
+          publisher:it.publisher||'',
+          year:     it.publishedDate?.slice(0,4)||'',
+          pages:    it.pageCount?.toString()||'',
+          coverUrl: (it.imageLinks?.thumbnail||it.imageLinks?.smallThumbnail||'').replace('http:','https:'),
+          isbn, status:'toread', rating:0, notes:'', genre:it.categories?.[0]||''
+        };
       }catch{}
     }
-    if(!book||!book.title){showManualOffer(isbn,rd);return}
-    // Duplicate check
-    const dup=DB.findByISBN(isbn);
-    if(dup){showScanDup(dup,book,rd);return}
+    if(!book||!book.title){ showManualOffer(isbn,rd); return; }
+    const dup = DB.findByISBN(isbn);
+    if(dup){ showScanDup(dup,book,rd); return; }
     showScanResult(book,rd);
   }catch(err){
     console.error(err);
@@ -1124,7 +1169,7 @@ async function fetchISBN(isbn){
 }
 
 function showScanResult(book,rd){
-  const j=JSON.stringify(book).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const j = JSON.stringify(book).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   rd.innerHTML=`
     <div style="display:flex;align-items:center;gap:.5rem;color:var(--green);font-weight:600;font-size:.88rem;margin-bottom:.85rem"><i class="fa-solid fa-check-circle"></i> Kitap bulundu!</div>
     <div class="res-row">
@@ -1146,7 +1191,7 @@ function showScanResult(book,rd){
 }
 
 function showScanDup(existing,found,rd){
-  const j=JSON.stringify(found).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const j = JSON.stringify(found).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   rd.innerHTML=`
     <div style="display:flex;align-items:center;gap:.5rem;color:var(--yellow);font-weight:600;font-size:.88rem;margin-bottom:.85rem"><i class="fa-solid fa-triangle-exclamation"></i> Bu kitap zaten kitaplığınızda!</div>
     <div class="res-row">
@@ -1159,40 +1204,41 @@ function showScanDup(existing,found,rd){
         <p>Eklenme: ${fmtDate(existing.addedAt)}</p>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.75rem">
           <button class="btn-b" onclick="viewExisting('${existing.id}')"><i class="fa-solid fa-eye"></i> Mevcut Kitabı Gör</button>
-          <button class="btn-g" onclick="addScanned('${j}')"><i class="fa-solid fa-plus"></i> Yine de Ekle</button>
+          <button class="btn-g"  onclick="addScanned('${j}')"><i class="fa-solid fa-plus"></i> Yine de Ekle</button>
         </div>
       </div>
     </div>`;
 }
 
 function showManualOffer(isbn,rd,extra=''){
-  const j=JSON.stringify({isbn,title:'',author:'',publisher:'',year:'',pages:'',coverUrl:'',genre:'',status:'toread',rating:0,notes:''}).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const j = JSON.stringify({isbn,title:'',author:'',publisher:'',year:'',pages:'',coverUrl:'',genre:'',status:'toread',rating:0,notes:''}).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   rd.innerHTML=`
     <div style="display:flex;align-items:center;gap:.5rem;color:var(--yellow);font-weight:600;font-size:.88rem;margin-bottom:.6rem"><i class="fa-solid fa-circle-exclamation"></i> Kitap bulunamadı</div>
-    <p style="font-size:.83rem;color:var(--muted);margin-bottom:.9rem">${extra?extra+' ':''}ISBN <strong style="color:var(--text);font-family:monospace">${isbn}</strong> için veri bulunamadı. Manuel ekleyebilirsiniz.</p>
+    <p style="font-size:.83rem;color:var(--muted);margin-bottom:.9rem">${extra?extra+' ':''}ISBN <strong style="color:var(--text);font-family:monospace">${isbn}</strong> için veri bulunamadı.</p>
     <button class="btn-g" onclick="fillForm('${j}')"><i class="fa-solid fa-pen"></i> Manuel Ekle</button>`;
 }
 
 function addScanned(j){
-  const book=JSON.parse(j.replace(/\\'/g,"'").replace(/\\\\/g,'\\'));
-  const b={...book,id:uid(),addedAt:new Date().toISOString()};
-  DB.addBook(b); toast(`"${b.title}" eklendi!`,'success');
-  document.getElementById('scan-result').style.display='none';
+  const book = JSON.parse(j.replace(/\\'/g,"'").replace(/\\\\/g,'\\'));
+  DB.addBook({...book, id:uid(), addedAt:new Date().toISOString()});
+  toast(`"${book.title}" eklendi!`,'success');
+  const rd=document.getElementById('scan-result');
+  rd.style.display='none'; rd.innerHTML='';
   updateHeader();
 }
 
 function fillForm(j){
-  const book=JSON.parse(j.replace(/\\'/g,"'").replace(/\\\\/g,'\\'));
+  const book = JSON.parse(j.replace(/\\'/g,"'").replace(/\\\\/g,'\\'));
   formReset(); nav('add');
-  document.getElementById('fTitle').value=book.title||'';
-  document.getElementById('fAuthor').value=book.author||'';
-  document.getElementById('fIsbn').value=book.isbn||'';
-  document.getElementById('fPub').value=book.publisher||'';
-  document.getElementById('fYear').value=book.year||'';
-  document.getElementById('fPages').value=book.pages||'';
-  document.getElementById('fStatus').value=book.status||'toread';
-  document.getElementById('fGenre').value=book.genre||'';
-  document.getElementById('fCover').value=book.coverUrl||'';
+  document.getElementById('fTitle').value  = book.title||'';
+  document.getElementById('fAuthor').value = book.author||'';
+  document.getElementById('fIsbn').value   = book.isbn||'';
+  document.getElementById('fPub').value    = book.publisher||'';
+  document.getElementById('fYear').value   = book.year||'';
+  document.getElementById('fPages').value  = book.pages||'';
+  document.getElementById('fStatus').value = book.status||'toread';
+  document.getElementById('fGenre').value  = book.genre||'';
+  document.getElementById('fCover').value  = book.coverUrl||'';
 }
 
 
@@ -1477,12 +1523,18 @@ function _dlText(content,filename,mime){
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded',()=>{
-  // Preload Quagga
-  loadQuagga();
-  // Init
   nav('library');
-  // Scanner tab default
   switchTab('cam');
+  // BarcodeDetector desteğini kontrol et ve kullanıcıya bilgi ver
+  if(!('BarcodeDetector' in window)){
+    const ph = document.getElementById('camPh');
+    if(ph){
+      ph.innerHTML += `<div style="margin-top:.75rem;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.2);border-radius:8px;padding:.6rem .9rem;font-size:.75rem;color:var(--yellow);text-align:center;max-width:300px">
+        <i class="fa-solid fa-triangle-exclamation"></i> Tarayıcınız kamera barkod okumayı desteklemiyor.<br>
+        <span style="color:var(--muted)">Chrome veya Edge kullanın ya da ISBN sekmesini deneyin.</span>
+      </div>`;
+    }
+  }
 });
 </script>
 </body>
