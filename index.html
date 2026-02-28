@@ -4,98 +4,98 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pro-Lib | Akıllı Kütüphane Sistemi</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         :root {
-            --primary: #1e293b; --secondary: #334155; --accent: #3b82f6;
-            --success: #22c55e; --danger: #ef4444; --bg: #f1f5f9;
+            --primary: #1e293b; --accent: #3b82f6; --success: #22c55e;
+            --danger: #ef4444; --warning: #f59e0b; --bg: #f1f5f9;
         }
-        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--primary); }
-        .app-wrapper { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--primary); }
+        .app-wrapper { max-width: 800px; margin: auto; }
         
-        /* Header & Stats */
-        .header { background: white; padding: 1.5rem; border-radius: 1rem; shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 1.5rem; text-align: center; }
-        .stats-badge { background: var(--accent); color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.875rem; }
+        /* Header */
+        .header { background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 1.5rem; text-align: center; }
+        .stats-badge { background: var(--accent); color: white; padding: 0.3rem 0.8rem; border-radius: 50px; font-size: 0.85rem; }
 
-        /* Controls */
-        .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
-        .btn { border: none; padding: 0.75rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; }
+        /* Toolbar */
+        .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+        .btn { border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-outline { background: white; border: 1px solid #cbd5e1; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:active { transform: scale(0.98); }
 
         /* Scanner */
-        #reader { border-radius: 1rem; overflow: hidden; margin-bottom: 1.5rem; border: 2px solid #cbd5e1; display: none; }
-
-        /* Search Bar */
-        .search-box { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; margin-bottom: 1.5rem; box-sizing: border-box; }
-
-        /* Book List */
-        .book-grid { display: flex; flex-direction: column; gap: 1rem; }
-        .book-card { background: white; padding: 1rem; border-radius: 0.75rem; display: flex; gap: 1rem; align-items: flex-start; border: 1px solid transparent; transition: 0.3s; }
-        .book-card:hover { border-color: var(--accent); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
-        .book-cover { width: 80px; height: 120px; object-fit: cover; border-radius: 0.375rem; background: #e2e8f0; flex-shrink: 0; }
-        .book-info { flex: 1; }
-        .book-title { font-size: 1.125rem; font-weight: 700; margin: 0; }
-        .book-meta { font-size: 0.875rem; color: var(--secondary); margin: 0.25rem 0; }
-        .book-summary { font-size: 0.8125rem; color: #64748b; margin-top: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        #reader { border-radius: 1rem; overflow: hidden; border: 3px solid #cbd5e1; display: none; margin-bottom: 1.5rem; }
         
-        .actions { display: flex; gap: 10px; margin-top: 10px; }
-        .delete-link { color: var(--danger); font-size: 0.75rem; cursor: pointer; text-decoration: underline; }
+        /* Modal & Form */
+        .modal { background: white; padding: 20px; border-radius: 1rem; margin-bottom: 1.5rem; display: none; border: 2px solid var(--accent); animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
 
-        /* Forms */
-        .modal { background: white; padding: 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem; display: none; border: 2px solid var(--accent); }
-        .form-group { margin-bottom: 1rem; }
-        .form-group input, .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 0.4rem; box-sizing: border-box; }
+        /* Book Card */
+        .book-card { background: white; padding: 15px; border-radius: 12px; display: flex; gap: 15px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; }
+        .book-cover { width: 70px; height: 105px; object-fit: cover; border-radius: 4px; background: #eee; }
+        .book-info h4 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .book-meta { font-size: 0.85rem; color: #64748b; margin: 2px 0; }
+        .summary-text { font-size: 0.8rem; color: #94a3b8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 5px; }
+        .delete-btn { color: var(--danger); font-size: 0.75rem; cursor: pointer; background: none; border: none; padding: 0; margin-top: 8px; }
+
+        /* Search */
+        .search-bar { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 1.5rem; font-size: 1rem; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <div class="app-wrapper">
     <div class="header">
-        <h1>MyDigitalLibrary <span class="stats-badge" id="count-badge">0 Kitap</span></h1>
-        <p style="font-size: 0.8rem; color: #64748b;">Güvenli, Modüler, Profesyonel Veri Yönetimi</p>
+        <h1>📚 MyDigitalLibrary <span class="stats-badge" id="count-badge">0</span></h1>
     </div>
 
     <div class="toolbar">
         <button class="btn btn-primary" onclick="toggleScanner()">📷 Tara</button>
         <button class="btn btn-outline" onclick="toggleManualForm()">✍️ Manuel</button>
         <button class="btn btn-success" onclick="exportToExcel()">📊 Excel</button>
-        <button class="btn btn-outline" onclick="backupJSON()">💾 Yedek Al</button>
-        <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
-        <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">📂 Yükle</button>
+        <button class="btn btn-outline" onclick="backupJSON()">💾 Yedek</button>
     </div>
 
     <div id="reader"></div>
 
     <div id="manual-modal" class="modal">
-        <h3>Yeni Kitap Ekle</h3>
+        <h3 id="modal-title">Kitap Ekle</h3>
+        <p id="duplicate-warning" style="color: var(--warning); display:none; font-weight:bold;">⚠️ Bu kitap zaten kütüphanenizde ekli!</p>
         <div class="form-group"><input type="text" id="m-title" placeholder="Kitap Adı"></div>
         <div class="form-group"><input type="text" id="m-author" placeholder="Yazar"></div>
         <div class="form-group"><input type="text" id="m-publisher" placeholder="Yayınevi"></div>
         <div class="form-group"><input type="text" id="m-year" placeholder="Baskı Yılı"></div>
-        <div class="form-group"><textarea id="m-summary" rows="3" placeholder="Kitap Özeti"></textarea></div>
-        <button class="btn btn-primary" onclick="saveManual()">Sisteme Kaydet</button>
-        <button class="btn" onclick="toggleManualForm()">İptal</button>
+        <div class="form-group"><textarea id="m-summary" rows="3" placeholder="Özet"></textarea></div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" style="flex:1" onclick="saveManual()">Kaydı Onayla</button>
+            <button class="btn btn-outline" style="flex:1" onclick="closeModal()">Vazgeç</button>
+        </div>
     </div>
 
-    <input type="text" class="search-box" id="search" placeholder="Kitap, yazar veya yayınevi ara..." onkeyup="filterBooks()">
+    <input type="text" class="search-bar" id="search" placeholder="Kitaplarda ara..." onkeyup="filterLibrary()">
 
-    <div id="book-list" class="book-grid">
-        </div>
+    <div id="book-list"></div>
 </div>
 
 <script>
-    // --- VERİ YÖNETİMİ (DATA LAYER) ---
-    let library = JSON.parse(localStorage.getItem('pro_library_v3')) || [];
+    let library = JSON.parse(localStorage.getItem('pro_library_v4')) || [];
     let html5QrCode = null;
+    let lastScannedCode = null;
 
-    // --- BAŞLANGIÇ ---
     renderLibrary(library);
 
-    // --- TARAYICI FONKSİYONLARI ---
+    // --- KAMERA KONTROLÜ ---
     async function toggleScanner() {
         const reader = document.getElementById('reader');
         if (html5QrCode && html5QrCode.getState() === 2) {
@@ -104,130 +104,72 @@
         } else {
             reader.style.display = 'block';
             html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, 
-                (text) => { fetchFromAPI(text); }
-            ).catch(err => alert("Kamera izni gerekli!"));
+            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => {
+                if(text !== lastScannedCode) { // Ard arda aynı kodu okumayı önle
+                    lastScannedCode = text;
+                    processBarcode(text);
+                }
+            });
         }
     }
 
-    // --- API ENTEGRASYONU ---
-    async function fetchFromAPI(isbn) {
+    // --- BARKOD İŞLEME ---
+    async function processBarcode(isbn) {
+        // Sistemde bu ISBN var mı?
+        const existingBook = library.find(b => b.isbn === isbn);
+        
         try {
             const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
             const data = await res.json();
+            
             if (data.totalItems > 0) {
-                const b = data.items[0].volumeInfo;
-                commitToLibrary({
-                    id: Date.now(),
-                    title: b.title,
-                    author: b.authors?.join(', ') || 'Bilinmiyor',
-                    publisher: b.publisher || 'Bilinmiyor',
-                    year: b.publishedDate || 'Bilinmiyor',
-                    summary: b.description || 'Özet bulunamadı.',
-                    img: b.imageLinks?.thumbnail || ''
-                });
-                if(html5QrCode) html5QrCode.stop();
-                document.getElementById('reader').style.display = 'none';
-            } else {
-                if(confirm("Kitap bulunamadı. Manuel eklemek ister misiniz?")) toggleManualForm();
-            }
-        } catch (e) { alert("API hatası oluştu."); }
-    }
+                const info = data.items[0].volumeInfo;
+                const bookData = {
+                    isbn: isbn,
+                    title: info.title,
+                    author: info.authors?.join(', ') || 'Bilinmiyor',
+                    publisher: info.publisher || 'Bilinmiyor',
+                    year: info.publishedDate || 'Bilinmiyor',
+                    summary: info.description || 'Özet yok.',
+                    img: info.imageLinks?.thumbnail || ''
+                };
 
-    // --- KAYIT VE KALICILIK ---
-    function commitToLibrary(book) {
-        library.unshift(book);
-        localStorage.setItem('pro_library_v3', JSON.stringify(library));
-        renderLibrary(library);
-    }
-
-    function deleteBook(id) {
-        if(confirm("Bu kitabı kütüphaneden silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
-            library = library.filter(b => b.id !== id);
-            localStorage.setItem('pro_library_v3', JSON.stringify(library));
-            renderLibrary(library);
-        }
-    }
-
-    // --- ARAYÜZ (UI LAYER) ---
-    function renderLibrary(data) {
-        const list = document.getElementById('book-list');
-        const badge = document.getElementById('count-badge');
-        list.innerHTML = '';
-        badge.innerText = `${data.length} Kitap`;
-
-        data.forEach(book => {
-            list.innerHTML += `
-                <div class="book-card">
-                    <img src="${book.img || 'https://via.placeholder.com/80x120?text=No+Cover'}" class="book-cover">
-                    <div class="book-info">
-                        <h4 class="book-title">${book.title}</h4>
-                        <p class="book-meta"><strong>Yazar:</strong> ${book.author}</p>
-                        <p class="book-meta"><strong>Yayın:</strong> ${book.publisher} (${book.year})</p>
-                        <p class="book-summary">${book.summary}</p>
-                        <div class="actions">
-                            <span class="delete-link" onclick="deleteBook(${book.id})">Kitabı Sil</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-    }
-
-    function filterBooks() {
-        const term = document.getElementById('search').value.toLowerCase();
-        const filtered = library.filter(b => 
-            b.title.toLowerCase().includes(term) || 
-            b.author.toLowerCase().includes(term) || 
-            b.publisher.toLowerCase().includes(term)
-        );
-        renderLibrary(filtered);
-    }
-
-    // --- DIŞA AKTAR / İÇE AKTAR (PROFESYONEL YEDEKLEME) ---
-    function exportToExcel() {
-        const ws = XLSX.utils.json_to_sheet(library);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Library");
-        XLSX.writeFile(wb, "Kutuphane_Rapor.xlsx");
-    }
-
-    function backupJSON() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(library));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "library_backup.json");
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-    }
-
-    function importJSON(event) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const imported = JSON.parse(e.target.result);
-                if(confirm(`${imported.length} kitap yüklenecek. Mevcut liste ile birleştirilsin mi?`)) {
-                    library = [...imported, ...library];
-                    // Tekilleştirme (Aynı ID'li kitapları temizle)
-                    library = Array.from(new Map(library.map(item => [item.id, item])).values());
-                    localStorage.setItem('pro_library_v3', JSON.stringify(library));
-                    renderLibrary(library);
+                if (existingBook) {
+                    showDuplicateDialog(bookData);
+                } else {
+                    addBook(bookData);
                 }
-            } catch(err) { alert("Geçersiz dosya formatı!"); }
-        };
-        reader.readAsText(event.target.files[0]);
+            } else if (confirm("Kitap bulunamadı. Manuel girmek ister misiniz?")) {
+                toggleManualForm();
+            }
+        } catch (e) { alert("Bağlantı hatası!"); }
     }
 
-    // --- MODAL YÖNETİMİ ---
-    function toggleManualForm() {
-        const m = document.getElementById('manual-modal');
-        m.style.display = m.style.display === 'block' ? 'none' : 'block';
+    // --- ÇİFT KAYIT DİYALOĞU ---
+    function showDuplicateDialog(book) {
+        if(html5QrCode) html5QrCode.stop();
+        document.getElementById('reader').style.display = 'none';
+        
+        document.getElementById('modal-title').innerText = "Kitap Zaten Mevcut";
+        document.getElementById('duplicate-warning').style.display = 'block';
+        
+        // Formu bilgilerle doldur (Kullanıcı yine de eklemek isterse)
+        fillForm(book);
+        document.getElementById('manual-modal').style.display = 'block';
+    }
+
+    // --- KAYIT FONKSİYONLARI ---
+    function addBook(book) {
+        book.id = Date.now();
+        library.unshift(book);
+        saveAndRender();
+        lastScannedCode = null;
     }
 
     function saveManual() {
         const book = {
             id: Date.now(),
+            isbn: 'MANUAL',
             title: document.getElementById('m-title').value,
             author: document.getElementById('m-author').value,
             publisher: document.getElementById('m-publisher').value,
@@ -235,12 +177,85 @@
             summary: document.getElementById('m-summary').value,
             img: ''
         };
-        if(!book.title) return alert("Başlık zorunlu!");
-        commitToLibrary(book);
-        toggleManualForm();
-        // Formu temizle
-        document.querySelectorAll('#manual-modal input, #manual-modal textarea').forEach(i => i.value = '');
+        if(!book.title) return alert("Başlık şart!");
+        library.unshift(book);
+        saveAndRender();
+        closeModal();
+    }
+
+    function saveAndRender() {
+        localStorage.setItem('pro_library_v4', JSON.stringify(library));
+        renderLibrary(library);
+    }
+
+    // --- UI YÖNETİMİ ---
+    function renderLibrary(data) {
+        const list = document.getElementById('book-list');
+        document.getElementById('count-badge').innerText = data.length;
+        list.innerHTML = data.map(book => `
+            <div class="book-card">
+                <img src="${book.img || 'https://via.placeholder.com/70x105?text=Yok'}" class="book-cover">
+                <div class="book-info">
+                    <h4>${book.title}</h4>
+                    <p class="book-meta"><strong>Yazar:</strong> ${book.author}</p>
+                    <p class="book-meta"><strong>Yayınevi:</strong> ${book.publisher} (${book.year})</p>
+                    <p class="summary-text">${book.summary}</p>
+                    <button class="delete-btn" onclick="deleteBook(${book.id})">🗑️ Bu Kaydı Sil</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function fillForm(book) {
+        document.getElementById('m-title').value = book.title;
+        document.getElementById('m-author').value = book.author;
+        document.getElementById('m-publisher').value = book.publisher;
+        document.getElementById('m-year').value = book.year;
+        document.getElementById('m-summary').value = book.summary;
+    }
+
+    function toggleManualForm() {
+        document.getElementById('modal-title').innerText = "Yeni Kitap Ekle";
+        document.getElementById('duplicate-warning').style.display = 'none';
+        document.getElementById('manual-modal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('manual-modal').style.display = 'none';
+        lastScannedCode = null;
+    }
+
+    function deleteBook(id) {
+        if(confirm("Silinsin mi?")) {
+            library = library.filter(b => b.id !== id);
+            saveAndRender();
+        }
+    }
+
+    function filterLibrary() {
+        const query = document.getElementById('search').value.toLowerCase();
+        const filtered = library.filter(b => 
+            b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query)
+        );
+        renderLibrary(filtered);
+    }
+
+    // --- DIŞA AKTARMA ---
+    function exportToExcel() {
+        const ws = XLSX.utils.json_to_sheet(library);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Kütüphane");
+        XLSX.writeFile(wb, "Kutuphanem.xlsx");
+    }
+
+    function backupJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(library));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", "kutuphane_yedek.json");
+        dl.click();
     }
 </script>
+
 </body>
 </html>
