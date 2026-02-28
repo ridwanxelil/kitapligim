@@ -1116,58 +1116,370 @@ async function isbnSearch(){
   await fetchISBN(v);
 }
 
-/* Fetch book info from Open Library + Google Books */
+/* ============================================================
+   MULTI-SOURCE ISBN LOOKUP
+   8 farklı kütüphane sırayla sorgulanır, bulunan ilk sonuç
+   kullanılır. Her adım UI'da gösterilir.
+   ============================================================ */
+
+/* Kaynak tanımları */
+const ISBN_SOURCES = [
+  {
+    id: 'google',
+    name: 'Google Books',
+    flag: '🔍',
+    fetch: async (isbn) => {
+      // Hem ISBN hem de title araması için geniş parametre
+      const urls = [
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1&langRestrict=`,
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=3`
+      ];
+      for(const url of urls){
+        try{
+          const r = await _fetchTimeout(url, 6000);
+          const d = await r.json();
+          const it = d.items?.[0]?.volumeInfo;
+          if(it && it.title){
+            const cover = (it.imageLinks?.extraLarge||it.imageLinks?.large||it.imageLinks?.medium||it.imageLinks?.thumbnail||it.imageLinks?.smallThumbnail||'').replace('http:','https:');
+            return {
+              title:    it.title,
+              author:   (it.authors||[]).join(', '),
+              publisher:it.publisher||'',
+              year:     (it.publishedDate||'').slice(0,4),
+              pages:    it.pageCount?.toString()||'',
+              coverUrl: cover,
+              genre:    (it.categories||[]).join(', '),
+              desc:     it.description||'',
+              lang:     it.language||'',
+              source:   'Google Books'
+            };
+          }
+        }catch{}
+      }
+      return null;
+    }
+  },
+  {
+    id: 'openlibrary',
+    name: 'Open Library',
+    flag: '📚',
+    fetch: async (isbn) => {
+      try{
+        const r = await _fetchTimeout(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, 7000);
+        const d = await r.json();
+        const x = d[`ISBN:${isbn}`];
+        if(x && x.title){
+          return {
+            title:    x.title,
+            author:   (x.authors||[]).map(a=>a.name).join(', '),
+            publisher:(x.publishers||[]).map(p=>p.name).join(', '),
+            year:     (x.publish_date||'').match(/\d{4}/)?.[0]||'',
+            pages:    x.number_of_pages?.toString()||'',
+            coverUrl: x.cover?.large||x.cover?.medium||x.cover?.small||'',
+            genre:    (x.subjects||[]).slice(0,2).map(s=>s.name||s).join(', '),
+            desc:     x.excerpts?.[0]?.text||'',
+            source:   'Open Library'
+          };
+        }
+      }catch{}
+      return null;
+    }
+  },
+  {
+    id: 'ol_search',
+    name: 'Open Library Search',
+    flag: '🔎',
+    fetch: async (isbn) => {
+      try{
+        const r = await _fetchTimeout(`https://openlibrary.org/search.json?isbn=${isbn}&limit=1`, 7000);
+        const d = await r.json();
+        const doc = d.docs?.[0];
+        if(doc && doc.title){
+          const coverId = doc.cover_i;
+          return {
+            title:    doc.title,
+            author:   (doc.author_name||[]).join(', '),
+            publisher:(doc.publisher||[]).slice(-1)[0]||'',
+            year:     doc.first_publish_year?.toString()||'',
+            pages:    doc.number_of_pages_median?.toString()||'',
+            coverUrl: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : '',
+            genre:    (doc.subject||[]).slice(0,2).join(', '),
+            source:   'Open Library Search'
+          };
+        }
+      }catch{}
+      return null;
+    }
+  },
+  {
+    id: 'isbndb',
+    name: 'ISBNdb',
+    flag: '🗃️',
+    fetch: async (isbn) => {
+      // ISBNdb ücretsiz uç nokta (API key gerekmez bu endpoint için)
+      try{
+        const r = await _fetchTimeout(`https://api2.isbndb.com/book/${isbn}`, 5000);
+        const d = await r.json();
+        const b = d.book;
+        if(b && b.title){
+          return {
+            title:    b.title,
+            author:   (b.authors||[]).join(', '),
+            publisher:b.publisher||'',
+            year:     (b.date_published||'').slice(0,4),
+            pages:    b.pages?.toString()||'',
+            coverUrl: b.image||'',
+            genre:    (b.subjects||[]).slice(0,2).join(', '),
+            source:   'ISBNdb'
+          };
+        }
+      }catch{}
+      return null;
+    }
+  },
+  {
+    id: 'worldcat',
+    name: 'WorldCat',
+    flag: '🌍',
+    fetch: async (isbn) => {
+      try{
+        // WorldCat Linked Data (ücretsiz, CORS destekler)
+        const r = await _fetchTimeout(`https://www.worldcat.org/oclc/isbn/${isbn}?format=json`, 6000);
+        const d = await r.json();
+        if(d['@graph']){
+          const item = d['@graph'].find(n => n['schema:name']);
+          if(item && item['schema:name']){
+            return {
+              title:    Array.isArray(item['schema:name']) ? item['schema:name'][0] : item['schema:name'],
+              author:   '',
+              source:   'WorldCat'
+            };
+          }
+        }
+      }catch{}
+      return null;
+    }
+  },
+  {
+    id: 'opds_tr',
+    name: 'Milli Kütüphane (TR)',
+    flag: '🇹🇷',
+    fetch: async (isbn) => {
+      // Milli Kütüphane OPDS / SRU endpoint
+      try{
+        const r = await _fetchTimeout(
+          `https://www.mkutup.gov.tr/tr/Sayfalar/mksearch.aspx?type=isbn&isbn=${isbn}`,
+          6000
+        );
+        // HTML dönebilir, başlık parse et
+        const txt = await r.text();
+        const titleMatch = txt.match(/<title[^>]*>([^<]{5,})<\/title>/i);
+        const parsed = titleMatch?.[1]?.replace(/\s*[-|–].*$/,'').trim()||'';
+        if(parsed && parsed.length>3 && !parsed.toLowerCase().includes('hata') && !parsed.toLowerCase().includes('error')){
+          return { title: parsed, source: 'Milli Kütüphane TR' };
+        }
+      }catch{}
+      return null;
+    }
+  },
+  {
+    id: 'bn',
+    name: 'Barnes & Noble',
+    flag: '📖',
+    fetch: async (isbn) => {
+      try{
+        const r = await _fetchTimeout(`https://api.barnesandnoble.com/v1/product?ean=${isbn}&key=APIkey`, 5000);
+        const d = await r.json();
+        if(d.product?.title){
+          return {
+            title:    d.product.title,
+            author:   d.product.contributorList?.map(c=>c.name).join(', ')||'',
+            publisher:d.product.publisher||'',
+            coverUrl: d.product.imageUrl||'',
+            source:   'Barnes & Noble'
+          };
+        }
+      }catch{}
+      return null;
+    }
+  },
+  {
+    id: 'loc',
+    name: 'Library of Congress',
+    flag: '🏛️',
+    fetch: async (isbn) => {
+      try{
+        const r = await _fetchTimeout(`https://lccn.loc.gov/isbn/${isbn}/mads.json`, 5000);
+        const d = await r.json();
+        const title = d?.['@graph']?.find(n=>n['@type']?.includes('mads:Title'))?.['mads:authoritativeLabel'];
+        if(title){
+          return { title, source:'Library of Congress' };
+        }
+      }catch{}
+      // Fallback: LoC catalog search
+      try{
+        const r2 = await _fetchTimeout(`https://catalog.loc.gov/vwebv/search?searchArg=${isbn}&searchCode=ISBN&searchType=1&recCount=1&format=json`, 5000);
+        const d2 = await r2.json();
+        const rec = d2?.records?.[0];
+        if(rec?.title){ return {title:rec.title, author:rec.author||'', source:'Library of Congress'}; }
+      }catch{}
+      return null;
+    }
+  }
+];
+
+/* Timeout destekli fetch */
+function _fetchTimeout(url, ms=6000){
+  return Promise.race([
+    fetch(url, {mode:'cors'}),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
+  ]);
+}
+
+/* Sonuçları birleştir – en dolu olanı döndür */
+function _mergeResults(results){
+  if(!results.length) return null;
+  // En çok dolu alanı olan sonucu bul
+  const scored = results.map(r=>{
+    let s=0;
+    if(r.title?.trim())   s+=4;
+    if(r.author?.trim())  s+=3;
+    if(r.coverUrl?.trim())s+=2;
+    if(r.publisher)       s+=1;
+    if(r.pages)           s+=1;
+    if(r.year)            s+=1;
+    if(r.genre)           s+=1;
+    return {r,s};
+  });
+  scored.sort((a,b)=>b.s-a.s);
+  const best = scored[0].r;
+  // Eksik alanları diğer kaynaklardan tamamla
+  for(const {r} of scored.slice(1)){
+    if(!best.author    && r.author)    best.author    = r.author;
+    if(!best.coverUrl  && r.coverUrl)  best.coverUrl  = r.coverUrl;
+    if(!best.publisher && r.publisher) best.publisher = r.publisher;
+    if(!best.pages     && r.pages)     best.pages     = r.pages;
+    if(!best.year      && r.year)      best.year      = r.year;
+    if(!best.genre     && r.genre)     best.genre     = r.genre;
+    if(!best.desc      && r.desc)      best.desc      = r.desc;
+  }
+  return best;
+}
+
 async function fetchISBN(isbn){
   const rd = document.getElementById('scan-result');
   rd.style.display = 'block';
-  rd.innerHTML = `<div style="display:flex;align-items:center;gap:.75rem;color:var(--muted);font-size:.86rem"><div class="spin"></div> Kitap aranıyor: <strong style="color:var(--text);font-family:monospace">${isbn}</strong></div>`;
-  try{
-    let book = null;
-    // 1. Open Library
+
+  // Aşamalı ilerleme UI
+  rd.innerHTML = `
+    <div style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:.75rem">
+        <div class="spin"></div> ISBN <span style="font-family:monospace;color:var(--gold)">${isbn}</span> aranıyor…
+      </div>
+      <div id="src-list" style="display:flex;flex-direction:column;gap:.35rem"></div>
+    </div>`;
+
+  const srcList = document.getElementById('src-list');
+  const addSrcRow = (src, state, extra='') => {
+    let el = document.getElementById('src-'+src.id);
+    const icons = {pending:'fa-circle-notch fa-spin',ok:'fa-check-circle',fail:'fa-times-circle',skip:'fa-minus-circle'};
+    const colors= {pending:'var(--muted)',ok:'var(--green)',fail:'var(--red)',skip:'var(--muted)'};
+    const html = `<div style="display:flex;align-items:center;gap:.6rem;font-size:.78rem">
+      <i class="fa-solid ${icons[state]}" style="color:${colors[state]};width:14px"></i>
+      <span style="color:var(--muted)">${src.flag}</span>
+      <span style="color:${state==='ok'?'var(--text)':'var(--muted)'};font-weight:${state==='ok'?600:400}">${src.name}</span>
+      ${extra?`<span style="color:var(--green);font-size:.72rem">${extra}</span>`:''}
+    </div>`;
+    if(el){ el.innerHTML = html; }
+    else { const div=document.createElement('div'); div.id='src-'+src.id; div.innerHTML=html; srcList.appendChild(div); }
+  };
+
+  const found = [];
+
+  for(const src of ISBN_SOURCES){
+    addSrcRow(src,'pending');
     try{
-      const r = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-      const d = await r.json();
-      const k = `ISBN:${isbn}`;
-      if(d[k]){
-        const x = d[k];
-        book = {
-          title:    x.title||'',
-          author:   x.authors?.[0]?.name||'',
-          publisher:x.publishers?.[0]?.name||'',
-          year:     x.publish_date?.match(/\d{4}/)?.[0]||'',
-          pages:    x.number_of_pages?.toString()||'',
-          coverUrl: x.cover?.large||x.cover?.medium||x.cover?.small||'',
-          isbn, status:'toread', rating:0, notes:'', genre:x.subjects?.[0]?.name||''
-        };
+      const result = await src.fetch(isbn);
+      if(result && result.title && result.title.trim().length > 1){
+        addSrcRow(src,'ok','✓ Bulundu');
+        found.push({...result, isbn});
+        // İlk 2 başarılı sonuçtan sonra geri kalan kaynakları atla (hız için)
+        if(found.length >= 2) {
+          // Kalan kaynakları "atlandı" olarak işaretle
+          const remaining = ISBN_SOURCES.slice(ISBN_SOURCES.indexOf(src)+1);
+          remaining.forEach(s=>addSrcRow(s,'skip'));
+          break;
+        }
+      } else {
+        addSrcRow(src,'fail');
       }
-    }catch{}
-    // 2. Google Books fallback
-    if(!book||!book.title){
-      try{
-        const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-        const d = await r.json();
-        const it = d.items?.[0]?.volumeInfo;
-        if(it) book = {
-          title:    it.title||'',
-          author:   it.authors?.[0]||'',
-          publisher:it.publisher||'',
-          year:     it.publishedDate?.slice(0,4)||'',
-          pages:    it.pageCount?.toString()||'',
-          coverUrl: (it.imageLinks?.thumbnail||it.imageLinks?.smallThumbnail||'').replace('http:','https:'),
-          isbn, status:'toread', rating:0, notes:'', genre:it.categories?.[0]||''
-        };
-      }catch{}
+    }catch(e){
+      addSrcRow(src,'fail');
     }
-    if(!book||!book.title){ showManualOffer(isbn,rd); return; }
-    const dup = DB.findByISBN(isbn);
-    if(dup){ showScanDup(dup,book,rd); return; }
-    showScanResult(book,rd);
-  }catch(err){
-    console.error(err);
-    showManualOffer(isbn,rd,'Ağ hatası.');
   }
+
+  if(!found.length){
+    // Hiç sonuç yok
+    rd.innerHTML += `
+      <div style="margin-top:.75rem;background:rgba(240,180,41,.07);border:1px solid rgba(240,180,41,.2);border-radius:var(--r-md);padding:1rem">
+        <div style="color:var(--yellow);font-weight:600;font-size:.88rem;margin-bottom:.5rem"><i class="fa-solid fa-circle-exclamation"></i> ${isbn} için hiçbir kaynakta bilgi bulunamadı.</div>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem">ISBN numarasını kontrol edin veya kitabı manuel olarak ekleyin.</p>
+        <button class="btn-g" onclick="fillFormISBN('${isbn}')"><i class="fa-solid fa-pen"></i> Manuel Ekle</button>
+      </div>`;
+    return;
+  }
+
+  const book = _mergeResults(found);
+
+  // Duplicate kontrol
+  const dup = DB.findByISBN(isbn);
+  if(dup){ showScanDup(dup, book, rd); return; }
+
+  // Sonucu göster
+  rd.innerHTML += `
+    <div style="margin-top:.75rem;background:rgba(78,203,135,.06);border:1px solid rgba(78,203,135,.2);border-radius:var(--r-md);padding:1rem">
+      <div style="display:flex;align-items:center;gap:.5rem;color:var(--green);font-weight:600;font-size:.88rem;margin-bottom:.85rem">
+        <i class="fa-solid fa-check-circle"></i> Kitap bulundu!
+        <span style="font-size:.72rem;color:var(--muted);font-weight:400">via ${book.source||'?'}</span>
+      </div>
+      <div class="res-row">
+        ${book.coverUrl
+          ? `<img class="res-cover" src="${esc(book.coverUrl)}" alt="${esc(book.title)}" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="res-cover-ph"><i class="fa-solid fa-book"></i></div>`}
+        <div class="res-info">
+          <h5>${esc(book.title)}</h5>
+          ${book.author    ?`<p><i class="fa-solid fa-user-pen"           style="width:13px"></i> ${esc(book.author)}</p>`:''}
+          ${book.publisher ?`<p><i class="fa-solid fa-building-columns"   style="width:13px"></i> ${esc(book.publisher)}</p>`:''}
+          ${book.year      ?`<p><i class="fa-solid fa-calendar"           style="width:13px"></i> ${book.year}</p>`:''}
+          ${book.pages     ?`<p><i class="fa-solid fa-file-lines"         style="width:13px"></i> ${book.pages} sayfa</p>`:''}
+          ${book.genre     ?`<p><i class="fa-solid fa-tag"                style="width:13px"></i> ${esc(book.genre)}</p>`:''}
+          <span class="res-isbn">${isbn}</span>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.75rem">
+            <button class="btn-g"  onclick="addScannedBook(${_encodeBook(book)})"><i class="fa-solid fa-plus"></i> Kitaplığa Ekle</button>
+            <button class="btn-b"  onclick="fillForm(${_encodeBook(book)})"><i class="fa-solid fa-pen"></i> Düzenleyerek Ekle</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
+function _encodeBook(b){
+  return "'" + JSON.stringify(b).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'";
+}
+
+function fillFormISBN(isbn){
+  fillForm(JSON.stringify({isbn,title:'',author:'',publisher:'',year:'',pages:'',coverUrl:'',genre:'',status:'toread',rating:0,notes:''}));
+}
+
+/* Mevcut addScanned -> addScannedBook olarak güncelle */
+function addScannedBook(j){
+  const book = typeof j==='string' ? JSON.parse(j.replace(/\\'/g,"'").replace(/\\\\/g,'\\')) : j;
+  DB.addBook({...book, status:book.status||'toread', rating:book.rating||0, notes:book.notes||'', id:uid(), addedAt:new Date().toISOString()});
+  toast(`"${book.title}" eklendi!`,'success');
+  const rd=document.getElementById('scan-result');
+  rd.style.display='none'; rd.innerHTML='';
+  updateHeader();
+}
 function showScanResult(book,rd){
   const j = JSON.stringify(book).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   rd.innerHTML=`
@@ -1183,7 +1495,7 @@ function showScanResult(book,rd){
         ${book.pages?`<p><i class="fa-solid fa-file-lines" style="width:13px"></i> ${book.pages} sayfa</p>`:''}
         <span class="res-isbn">${book.isbn}</span>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-          <button class="btn-g" onclick="addScanned('${j}')"><i class="fa-solid fa-plus"></i> Kitaplığa Ekle</button>
+          <button class="btn-g" onclick="addScannedBook('${j}')"><i class="fa-solid fa-plus"></i> Kitaplığa Ekle</button>
           <button class="btn-b" onclick="fillForm('${j}')"><i class="fa-solid fa-pen"></i> Düzenleyerek Ekle</button>
         </div>
       </div>
@@ -1204,7 +1516,7 @@ function showScanDup(existing,found,rd){
         <p>Eklenme: ${fmtDate(existing.addedAt)}</p>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.75rem">
           <button class="btn-b" onclick="viewExisting('${existing.id}')"><i class="fa-solid fa-eye"></i> Mevcut Kitabı Gör</button>
-          <button class="btn-g"  onclick="addScanned('${j}')"><i class="fa-solid fa-plus"></i> Yine de Ekle</button>
+          <button class="btn-g"  onclick="addScannedBook('${j}')"><i class="fa-solid fa-plus"></i> Yine de Ekle</button>
         </div>
       </div>
     </div>`;
