@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Biblios — Kişisel Kütüphanenizi Dijitalleştirin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ════════════════════════════════════════
+   TOKENS
+════════════════════════════════════════ */
+:root {
+  --ink:    #0c0a08;
+  --paper:  #faf8f4;
+  --cream:  #f3efe6;
+  --vellum: #e8e1d4;
+  --gold:   #b8860b;
+  --gold-l: #d4a843;
+  --gold-ll:#f0c855;
+  --rust:   #8b3a2a;
+  --forest: #2a4a35;
+  --navy:   #1a2744;
+  --text:   #2c2419;
+  --text2:  #6b5d4e;
+  --text3:  #a8998a;
+  --border: rgba(184,134,11,.14);
+  --sh: 0 4px 24px rgba(12,10,8,.08), 0 1px 4px rgba(12,10,8,.05);
+  --sh-lg: 0 12px 48px rgba(12,10,8,.14), 0 4px 12px rgba(12,10,8,.07);
+  --r: 4px;
+  --r-md: 8px;
+  --r-lg: 14px;
+}
+
+/* ════════════════════════════════════════
+   RESET & BASE
+════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--paper);
+  color: var(--text);
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
+/* ════════════════════════════════════════
+   NOISE TEXTURE
+════════════════════════════════════════ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: .025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* ════════════════════════════════════════
+   TYPOGRAPHY
+════════════════════════════════════════ */
+h1, h2, h3, h4, .serif { font-family: 'Playfair Display', Georgia, serif; }
+
+.mono { font-family: 'DM Mono', monospace; }
+
+/* ════════════════════════════════════════
+   NAV
+════════════════════════════════════════ */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem 2.5rem;
+  background: rgba(250,248,244,.88);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  transition: box-shadow .3s;
+}
+nav.scrolled { box-shadow: 0 2px 20px rgba(12,10,8,.07); }
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  text-decoration: none;
+  color: var(--text);
+}
+.nav-logo-mark {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--gold), var(--rust));
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .95rem;
+  color: var(--paper);
+  flex-shrink: 0;
+}
+.nav-logo-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  list-style: none;
+}
+.nav-links a {
+  text-decoration: none;
+  color: var(--text2);
+  font-size: .88rem;
+  font-weight: 500;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--gold); }
+
+.btn-nav {
+  background: var(--gold);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--r-md);
+  padding: .55rem 1.35rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s, transform .15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+.btn-nav:hover { background: var(--gold-l); transform: translateY(-1px); }
+
+/* ════════════════════════════════════════
+   HERO
+════════════════════════════════════════ */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 8rem 2.5rem 5rem;
+  overflow: hidden;
+}
+
+/* Decorative book-shelf lines */
+.hero::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 6px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--gold) 0, var(--gold) 2px,
+    transparent 2px, transparent 18px
+  );
+  opacity: .3;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* Big decorative letter */
+.hero-bg::before {
+  content: 'B';
+  position: absolute;
+  right: -4%;
+  top: 50%;
+  transform: translateY(-55%);
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(280px, 38vw, 560px);
+  font-weight: 900;
+  color: var(--vellum);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Radial warm light */
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  width: 900px; height: 900px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,168,67,.12) 0%, transparent 70%);
+  top: -100px;
+  left: -200px;
+}
+
+.hero-inner {
+  position: relative;
+  max-width: 720px;
+  text-align: center;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  background: linear-gradient(to right, rgba(184,134,11,.1), rgba(184,134,11,.05));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .3rem .85rem .3rem .5rem;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--gold);
+  margin-bottom: 1.8rem;
+}
+.hero-eyebrow-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--gold-ll);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.hero-title {
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -.02em;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+}
+.hero-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  color: var(--text2);
+  font-weight: 300;
+  max-width: 520px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.7;
+}
+
+.hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  background: var(--gold);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--r-md);
+  padding: .85rem 2rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  box-shadow: 0 4px 20px rgba(184,134,11,.3);
+}
+.btn-primary:hover {
+  background: var(--gold-l);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(184,134,11,.38);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text2);
+  border: 1.5px solid var(--vellum);
+  border-radius: var(--r-md);
+  padding: .85rem 1.75rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+.btn-secondary:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  transform: translateY(-1px);
+}
+
+.hero-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.hstat-item { text-align: center; }
+.hstat-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+  display: block;
+}
+.hstat-label {
+  font-size: .75rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-top: .25rem;
+  display: block;
+}
+
+/* ════════════════════════════════════════
+   SECTION COMMONS
+════════════════════════════════════════ */
+section {
+  padding: 6rem 2.5rem;
+  position: relative;
+}
+
+.section-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+.section-label::before {
+  content: '';
+  width: 24px; height: 2px;
+  background: var(--gold);
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -.01em;
+  margin-bottom: 1rem;
+  max-width: 600px;
+}
+
+.section-sub {
+  color: var(--text2);
+  font-size: 1.05rem;
+  max-width: 520px;
+  line-height: 1.7;
+}
+
+/* ════════════════════════════════════════
+   FEATURES OVERVIEW
+════════════════════════════════════════ */
+#features {
+  background: var(--cream);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.features-intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+  margin-bottom: 5rem;
+}
+
+@media (max-width: 860px) {
+  .features-intro { grid-template-columns: 1fr; gap: 2.5rem; }
+}
+
+.feature-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .feature-cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .feature-cards-grid { grid-template-columns: 1fr; }
+}
+
+.fc {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.75rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform .25s, box-shadow .25s;
+}
+.fc::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-ll));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .3s;
+}
+.fc:hover { transform: translateY(-4px); box-shadow: var(--sh-lg); }
+.fc:hover::before { transform: scaleX(1); }
+
+.fc-icon {
+  width: 44px; height: 44px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  margin-bottom: 1.1rem;
+  flex-shrink: 0;
+}
+.fc-icon.gold { background: rgba(184,134,11,.1); color: var(--gold); }
+.fc-icon.rust { background: rgba(139,58,42,.08); color: var(--rust); }
+.fc-icon.forest { background: rgba(42,74,53,.08); color: var(--forest); }
+.fc-icon.navy { background: rgba(26,39,68,.08); color: var(--navy); }
+.fc-icon.amber { background: rgba(210,130,40,.1); color: #d28228; }
+.fc-icon.teal { background: rgba(40,120,110,.08); color: #28786e; }
+
+.fc-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: .5rem;
+  color: var(--text);
+}
+
+.fc-desc {
+  font-size: .88rem;
+  color: var(--text2);
+  line-height: 1.65;
+}
+
+.fc-tags {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.fc-tag {
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--text2);
+  padding: .18rem .55rem;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: .02em;
+}
+
+/* ════════════════════════════════════════
+   STATUS SYSTEM
+════════════════════════════════════════ */
+#status {
+  background: var(--paper);
+}
+
+.status-showcase {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+  margin-top: 3.5rem;
+}
+@media (max-width: 860px) {
+  .status-showcase { grid-template-columns: 1fr; gap: 2.5rem; }
+}
+
+.status-pills {
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .85rem 1.1rem;
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  transition: transform .2s, box-shadow .2s;
+  cursor: default;
+}
+.status-pill:hover {
+  transform: translateX(6px);
+  box-shadow: var(--sh);
+  border-color: rgba(184,134,11,.2);
+}
+.sp-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sp-emoji { font-size: 1.15rem; flex-shrink: 0; }
+.sp-label {
+  font-family: 'Playfair Display', serif;
+  font-size: .95rem;
+  font-weight: 600;
+  flex: 1;
+}
+.sp-desc {
+  font-size: .78rem;
+  color: var(--text3);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════
+   EXCEL FEATURE
+════════════════════════════════════════ */
+#excel {
+  background: var(--cream);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.excel-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 5rem;
+  align-items: center;
+  margin-top: 3.5rem;
+}
+@media (max-width: 860px) {
+  .excel-layout { grid-template-columns: 1fr; gap: 2.5rem; }
+}
+
+.excel-mockup {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--sh-lg);
+}
+.excel-title-bar {
+  background: var(--forest);
+  color: rgba(255,255,255,.8);
+  padding: .55rem 1rem;
+  font-size: .72rem;
+  font-family: 'DM Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.excel-title-bar::before {
+  content: '●';
+  color: #e05c5c;
+  font-size: .65rem;
+}
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .73rem;
+}
+.excel-table th {
+  background: var(--vellum);
+  color: var(--text2);
+  font-weight: 700;
+  padding: .5rem .75rem;
+  border: 1px solid var(--border);
+  font-family: 'DM Mono', monospace;
+  font-size: .65rem;
+  text-align: left;
+  white-space: nowrap;
+}
+.excel-table td {
+  padding: .45rem .75rem;
+  border: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 130px;
+  text-overflow: ellipsis;
+}
+.excel-table tr:nth-child(even) td { background: rgba(243,239,230,.4); }
+.excel-table tr:hover td { background: rgba(184,134,11,.04); }
+
+.excel-badge {
+  display: inline-block;
+  border-radius: 999px;
+  font-size: .6rem;
+  font-weight: 700;
+  padding: .15rem .5rem;
+  font-family: 'DM Mono', monospace;
+}
+.eb-read { background: rgba(42,74,53,.1); color: var(--forest); }
+.eb-reading { background: rgba(26,39,68,.1); color: var(--navy); }
+.eb-toread { background: rgba(184,134,11,.1); color: var(--gold); }
+
+.excel-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.ef-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.ef-num {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--paper);
+  font-family: 'Playfair Display', serif;
+  font-size: .85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ef-text strong {
+  display: block;
+  font-weight: 600;
+  margin-bottom: .18rem;
+  font-size: .9rem;
+}
+.ef-text span {
+  font-size: .83rem;
+  color: var(--text2);
+  line-height: 1.55;
+}
+
+/* ════════════════════════════════════════
+   MOBILE FEATURE
+════════════════════════════════════════ */
+#mobile {
+  background: var(--paper);
+}
+
+.mobile-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+  margin-top: 3.5rem;
+}
+@media (max-width: 860px) {
+  .mobile-layout { grid-template-columns: 1fr; gap: 2.5rem; }
+}
+
+.phone-mockup {
+  position: relative;
+  width: 260px;
+  margin: 0 auto;
+}
+.phone-frame {
+  background: var(--ink);
+  border-radius: 32px;
+  padding: 10px;
+  box-shadow: 0 24px 64px rgba(12,10,8,.22), 0 4px 12px rgba(12,10,8,.1),
+    inset 0 1px 0 rgba(255,255,255,.1);
+  position: relative;
+}
+.phone-screen {
+  background: #07070f;
+  border-radius: 24px;
+  overflow: hidden;
+  aspect-ratio: 9/19.5;
+  position: relative;
+}
+.phone-notch {
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 80px; height: 22px;
+  background: var(--ink);
+  border-radius: 0 0 12px 12px;
+  z-index: 10;
+}
+/* Phone screen content */
+.ps-header {
+  padding: 30px .65rem .45rem;
+  background: rgba(13,13,26,.9);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ps-logo-t {
+  font-family: 'Playfair Display', serif;
+  font-size: .9rem;
+  font-weight: 700;
+  color: #d4a853;
+}
+.ps-stat {
+  font-family: 'DM Mono', monospace;
+  font-size: .52rem;
+  color: rgba(212,168,83,.7);
+  background: rgba(212,168,83,.08);
+  border: 1px solid rgba(212,168,83,.15);
+  border-radius: 999px;
+  padding: .15rem .4rem;
+}
+
+.ps-books {
+  padding: .5rem .45rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .3rem;
+}
+.ps-book {
+  background: #111121;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ps-book-cover {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.psbc-1 { background: linear-gradient(135deg, #1a2744, #2a3a5a); }
+.psbc-2 { background: linear-gradient(135deg, #2a1f10, #4a3520); }
+.psbc-3 { background: linear-gradient(135deg, #1a2a1f, #2a4030); }
+.psbc-4 { background: linear-gradient(135deg, #2a1a20, #3a2030); }
+.ps-book-info { padding: .3rem .35rem; }
+.ps-book-title { font-size: .45rem; font-weight: 600; color: rgba(232,228,220,.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ps-book-author { font-size: .38rem; color: rgba(168,153,138,.7); margin-top: 1px; }
+
+.ps-bottom-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 36px;
+  background: rgba(7,7,15,.97);
+  border-top: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 .25rem;
+}
+.psb-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: rgba(168,153,138,.5);
+  font-size: .3rem;
+  font-weight: 600;
+}
+.psb-item.a { color: #d4a853; }
+.psb-item-icon { font-size: .65rem; }
+
+.mobile-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.mf-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.mf-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--r-md);
+  background: var(--cream);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .95rem;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.mf-text strong { display: block; font-weight: 600; margin-bottom: .2rem; font-size: .92rem; }
+.mf-text span { font-size: .84rem; color: var(--text2); line-height: 1.55; }
+
+/* ════════════════════════════════════════
+   TIMELINE — GELİŞTİRME GÜNLÜĞÜ
+════════════════════════════════════════ */
+#timeline {
+  background: var(--ink);
+  color: var(--paper);
+  border-top: 4px solid var(--gold);
+}
+
+#timeline .section-label { color: var(--gold-ll); }
+#timeline .section-label::before { background: var(--gold-ll); }
+#timeline .section-title { color: var(--paper); max-width: 100%; }
+#timeline .section-sub { color: rgba(250,248,244,.5); }
+
+.timeline-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: start;
+  margin-bottom: 5rem;
+}
+@media (max-width: 860px) {
+  .timeline-header { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+.tl-legend {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  margin-top: 2rem;
+}
+.tl-leg-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  font-size: .83rem;
+  color: rgba(250,248,244,.55);
+}
+.tl-leg-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* The vertical line */
+.tl-track {
+  position: relative;
+  padding-left: 2.5rem;
+}
+.tl-track::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom,
+    var(--gold) 0%,
+    rgba(212,168,67,.3) 80%,
+    transparent 100%
+  );
+}
+
+.tl-entry {
+  position: relative;
+  padding-bottom: 3.5rem;
+}
+.tl-entry:last-child { padding-bottom: 0; }
+
+/* Circle on the line */
+.tl-entry::before {
+  content: '';
+  position: absolute;
+  left: -2.5rem;
+  top: .35rem;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: var(--ink);
+  transform: translateX(-6px);
+  z-index: 1;
+  transition: background .3s, transform .3s;
+}
+.tl-entry:hover::before {
+  background: var(--gold);
+  transform: translateX(-6px) scale(1.2);
+}
+
+/* Connector to circle */
+.tl-entry::after {
+  content: '';
+  position: absolute;
+  left: -2.5rem;
+  top: .35rem;
+  width: 2.5rem;
+  height: 2px;
+  background: rgba(184,134,11,.25);
+  transform: translateX(8px);
+}
+
+.tl-date {
+  font-family: 'DM Mono', monospace;
+  font-size: .65rem;
+  font-weight: 500;
+  color: var(--gold-l);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: .4rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.tl-version {
+  display: inline-block;
+  background: rgba(212,168,67,.12);
+  border: 1px solid rgba(212,168,67,.25);
+  border-radius: 999px;
+  font-size: .62rem;
+  padding: .1rem .5rem;
+  margin-left: .35rem;
+}
+
+.tl-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--paper);
+  margin-bottom: .6rem;
+  line-height: 1.3;
+}
+
+.tl-desc {
+  font-size: .88rem;
+  color: rgba(250,248,244,.5);
+  line-height: 1.65;
+  margin-bottom: 1rem;
+  max-width: 600px;
+}
+
+.tl-chips {
+  display: flex;
+  gap: .45rem;
+  flex-wrap: wrap;
+}
+.tl-chip {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  background: rgba(250,248,244,.05);
+  border: 1px solid rgba(250,248,244,.1);
+  border-radius: 999px;
+  font-size: .72rem;
+  color: rgba(250,248,244,.6);
+  padding: .25rem .7rem;
+  transition: all .2s;
+}
+.tl-chip:hover {
+  background: rgba(212,168,67,.1);
+  border-color: rgba(212,168,67,.25);
+  color: var(--gold-l);
+}
+.tl-chip.highlight {
+  background: rgba(212,168,67,.12);
+  border-color: rgba(212,168,67,.3);
+  color: var(--gold-ll);
+}
+
+/* Category colors */
+.tl-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: .2rem .6rem;
+  border-radius: 999px;
+  margin-bottom: .6rem;
+}
+.cat-init  { background: rgba(42,74,53,.25); color: #6db88a; border: 1px solid rgba(109,184,138,.2); }
+.cat-ui    { background: rgba(26,39,68,.35); color: #7ea0d8; border: 1px solid rgba(126,160,216,.2); }
+.cat-feat  { background: rgba(184,134,11,.15); color: var(--gold-ll); border: 1px solid rgba(212,168,67,.2); }
+.cat-fix   { background: rgba(139,58,42,.2); color: #e8896a; border: 1px solid rgba(232,137,106,.2); }
+.cat-mob   { background: rgba(120,80,160,.2); color: #b89ad4; border: 1px solid rgba(184,154,212,.2); }
+
+/* ════════════════════════════════════════
+   CTA SECTION
+════════════════════════════════════════ */
+#cta {
+  background: var(--gold);
+  padding: 5rem 2.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+#cta::before {
+  content: 'Biblios';
+  position: absolute;
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: 18vw;
+  color: rgba(255,255,255,.07);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#cta .section-inner { position: relative; }
+#cta .section-label { color: rgba(12,10,8,.5); justify-content: center; }
+#cta .section-label::before { background: rgba(12,10,8,.4); }
+
+.cta-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 1rem;
+  letter-spacing: -.01em;
+}
+.cta-sub {
+  font-size: 1.1rem;
+  color: rgba(12,10,8,.6);
+  margin-bottom: 2.5rem;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.7;
+}
+.btn-cta {
+  background: var(--ink);
+  color: var(--gold-ll);
+  border: none;
+  border-radius: var(--r-md);
+  padding: 1rem 2.5rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  box-shadow: 0 8px 28px rgba(12,10,8,.25);
+}
+.btn-cta:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(12,10,8,.32); }
+
+/* ════════════════════════════════════════
+   FOOTER
+════════════════════════════════════════ */
+footer {
+  background: var(--ink);
+  border-top: 1px solid rgba(255,255,255,.07);
+  padding: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: rgba(250,248,244,.3);
+  font-size: .8rem;
+}
+footer .footer-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(212,168,67,.7);
+}
+footer a { color: rgba(212,168,67,.5); text-decoration: none; }
+footer a:hover { color: var(--gold-l); }
+
+/* ════════════════════════════════════════
+   SCROLL ANIMATIONS
+════════════════════════════════════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .65s ease, transform .65s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: .1s; }
+.reveal-delay-2 { transition-delay: .2s; }
+.reveal-delay-3 { transition-delay: .3s; }
+.reveal-delay-4 { transition-delay: .4s; }
+.reveal-delay-5 { transition-delay: .5s; }
+
+/* ════════════════════════════════════════
+   MISC
+════════════════════════════════════════ */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 0;
+}
+
+.badge-new {
+  background: rgba(42,74,53,.12);
+  border: 1px solid rgba(42,74,53,.2);
+  color: var(--forest);
+  border-radius: 999px;
+  font-size: .65rem;
+  font-weight: 700;
+  padding: .15rem .5rem;
+  margin-left: .4rem;
+  vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+  nav { padding: .75rem 1.25rem; }
+  .nav-links { display: none; }
+  section { padding: 4rem 1.25rem; }
+  .hero { padding: 7rem 1.25rem 4rem; }
+  .timeline-header { margin-bottom: 3rem; }
+  .tl-track { padding-left: 1.75rem; }
+  .tl-entry::before { left: -1.75rem; }
+  .tl-entry::after { left: -1.75rem; width: 1.75rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ────────────────── NAV ────────────────── -->
+<nav id="mainNav">
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-mark">📚</div>
+    <span class="nav-logo-text">Biblios</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Özellikler</a></li>
+    <li><a href="#status">Durumlar</a></li>
+    <li><a href="#excel">Excel</a></li>
+    <li><a href="#mobile">Mobil</a></li>
+    <li><a href="#timeline">Geliştirme</a></li>
+  </ul>
+  <a class="btn-nav" href="biblios.html" target="_blank">
+    📖 Uygulamayı Aç
+  </a>
+</nav>
+
+<!-- ────────────────── HERO ────────────────── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot"></div>
+      Kişisel Kütüphane Uygulaması
+    </div>
+    <h1 class="hero-title">
+      Kitaplarınızı<br/>
+      <em>zarifçe</em> yönetin
+    </h1>
+    <p class="hero-sub">
+      Biblios; kitap koleksiyonunuzu taramanızı, organize etmenizi,
+      istatistikler çıkarmanızı ve verilerinizi yedeklemenizi sağlayan
+      tek dosyalı, sıfır bağımlılıklı kişisel kütüphane uygulamasıdır.
+    </p>
+    <div class="hero-cta">
+      <a class="btn-primary" href="https://ridwanxelil.github.io/kitapligim/" target="_blank">
+        📖 Uygulamayı Başlat
+      </a>
+      <a class="btn-secondary" href="#features">
+        Özellikleri Keşfet →
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat-item">
+        <span class="hstat-num">8</span>
+        <span class="hstat-label">Kitap Durumu</span>
+      </div>
+      <div class="hstat-item">
+        <span class="hstat-num">1</span>
+        <span class="hstat-label">HTML Dosyası</span>
+      </div>
+      <div class="hstat-item">
+        <span class="hstat-num">∞</span>
+        <span class="hstat-label">Kitap Kapasitesi</span>
+      </div>
+      <div class="hstat-item">
+        <span class="hstat-num">0</span>
+        <span class="hstat-label">Sunucu, Hesap</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ────────────────── FEATURES ────────────────── -->
+<section id="features">
+  <div class="section-inner">
+    <div class="features-intro">
+      <div>
+        <div class="section-label reveal">Özellikler</div>
+        <h2 class="section-title reveal reveal-delay-1">Bir kitaplık için<br/>gereken her şey</h2>
+        <p class="section-sub reveal reveal-delay-2">
+          Barkod okutmaktan Excel dışa aktarmaya, istatistik panelinden
+          aktivite takibine — tüm özellikler tek bir HTML dosyasında,
+          internet bağlantısı gerektirmeden çalışır.
+        </p>
+      </div>
+      <div class="reveal reveal-delay-3">
+        <div style="background:var(--paper);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem;box-shadow:var(--sh)">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:.85rem">Teknik Özellikler</div>
+          <div style="display:flex;flex-direction:column;gap:.55rem">
+            <div style="display:flex;justify-content:space-between;font-size:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text2)">Depolama</span>
+              <span class="mono" style="color:var(--gold);font-size:.78rem">LocalStorage</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text2)">API</span>
+              <span class="mono" style="color:var(--gold);font-size:.78rem">Google Books API</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text2)">Barkod</span>
+              <span class="mono" style="color:var(--gold);font-size:.78rem">BarcodeDetector API</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text2)">Excel</span>
+              <span class="mono" style="color:var(--gold);font-size:.78rem">SheetJS (lazy)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.85rem">
+              <span style="color:var(--text2)">Çerçeve</span>
+              <span class="mono" style="color:var(--gold);font-size:.78rem">Vanilla JS — sıfır bağımlılık</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-cards-grid">
+
+      <div class="fc reveal">
+        <div class="fc-icon gold">📷</div>
+        <div class="fc-title">Barkod & ISBN Tarayıcı</div>
+        <div class="fc-desc">Arka kamerayı açın, kitabın barkodunu gösterin — ISBN otomatik okunur ve Google Books'tan kitap bilgisi anında çekilir.</div>
+        <div class="fc-tags">
+          <span class="fc-tag">EAN-13</span>
+          <span class="fc-tag">BarcodeDetector</span>
+          <span class="fc-tag">Arka kamera</span>
+        </div>
+      </div>
+
+      <div class="fc reveal reveal-delay-1">
+        <div class="fc-icon navy">📊</div>
+        <div class="fc-title">İstatistik Paneli</div>
+        <div class="fc-desc">Donut grafik, bar chart, aylık okuma grafiği ve 10 farklı istatistik kartıyla koleksiyonunuzun tam resmini görün.</div>
+        <div class="fc-tags">
+          <span class="fc-tag">SVG animasyonu</span>
+          <span class="fc-tag">8 durum</span>
+          <span class="fc-tag">Ort. puan</span>
+        </div>
+      </div>
+
+      <div class="fc reveal reveal-delay-2">
+        <div class="fc-icon forest">📁</div>
+        <div class="fc-title">Excel Aktarımı</div>
+        <div class="fc-desc">Tüm kitaplığı .xlsx'e aktarın veya Excel dosyasından toplu içe aktarın. Akıllı birleştirme ile mevcut kitaplar güncellenir, yeniler eklenir.</div>
+        <div class="fc-tags">
+          <span class="fc-tag">SheetJS</span>
+          <span class="fc-tag">Lazy load</span>
+          <span class="fc-tag">Şablon indir</span>
+        </div>
+      </div>
+
+      <div class="fc reveal reveal-delay-3">
+        <div class="fc-icon rust">✏️</div>
+        <div class="fc-title">Tam Düzenleme</div>
+        <div class="fc-desc">Her kitap için başlık, yazar, yayınevi, kapak, sayfa, puan ve notları baştan sona düzenleyebileceğiniz modal ekran.</div>
+        <div class="fc-tags">
+          <span class="fc-tag">Kapak önizleme</span>
+          <span class="fc-tag">5 yıldız</span>
+          <span class="fc-tag">8 durum</span>
+        </div>
+      </div>
+
+      <div class="fc reveal reveal-delay-4">
+        <div class="fc-icon amber">🔖</div>
+        <div class="fc-title">Aktivite Zaman Tüneli</div>
+        <div class="fc-desc">Ekleme, silme, durum değiştirme ve güncelleme işlemleri otomatik loglanır. Filtreli zaman tüneli ile tüm değişikliklerinizi takip edin.</div>
+        <div class="fc-tags">
+          <span class="fc-tag">Auto-log</span>
+          <span class="fc-tag">Filtre</span>
+          <span class="fc-tag">Son 100</span>
+        </div>
+      </div>
+
+      <div class="fc reveal reveal-delay-5">
+        <div class="fc-icon teal">🏷️</div>
+        <div class="fc-title">Dizin & Keşfet</div>
+        <div class="fc-desc">Yazarlar, yayınevleri ve durumlara göre kitaplarınızı indeksleyin. Herhangi bir yazarın tüm kitaplarına tek tıkla ulaşın.</div>
+        <div class="fc-tags">
+          <span class="fc-tag">Yazar indeksi</span>
+          <span class="fc-tag">Yayınevi</span>
+          <span class="fc-tag">Detay görünüm</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────── STATUS ────────────────── -->
+<section id="status">
+  <div class="section-inner">
+    <div class="section-label reveal">Durum Sistemi</div>
+    <h2 class="section-title reveal reveal-delay-1">8 Farklı durum,<br/>tam kontrol</h2>
+
+    <div class="status-showcase">
+      <div class="status-pills reveal">
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#4a7fd4"></span>
+          <span class="sp-emoji">📖</span>
+          <span class="sp-label">Okunuyor</span>
+          <span class="sp-desc">Şu an okumakta</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#3ecf7a"></span>
+          <span class="sp-emoji">✅</span>
+          <span class="sp-label">Okundu</span>
+          <span class="sp-desc">Tamamlandı</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#d4a853"></span>
+          <span class="sp-emoji">📚</span>
+          <span class="sp-label">Okuyacağım</span>
+          <span class="sp-desc">Okuma listesi</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#f0a429"></span>
+          <span class="sp-emoji">⏸</span>
+          <span class="sp-label">Bırakıldı</span>
+          <span class="sp-desc">Ara verildi</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#9b72d4"></span>
+          <span class="sp-emoji">📦</span>
+          <span class="sp-label">Sahip Olduğum</span>
+          <span class="sp-desc">Fiziksel koleksiyon</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#2ec4b6"></span>
+          <span class="sp-emoji">🤝</span>
+          <span class="sp-label">Ödünç Aldım</span>
+          <span class="sp-desc">Birisinden alınan</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#e8698a"></span>
+          <span class="sp-emoji">↗️</span>
+          <span class="sp-label">Ödünç Verdim</span>
+          <span class="sp-desc">Birisine verilen</span>
+        </div>
+        <div class="status-pill">
+          <span class="sp-dot" style="background:#8899aa"></span>
+          <span class="sp-emoji">⭐</span>
+          <span class="sp-label">İstek Listesi</span>
+          <span class="sp-desc">Almak isteniyor</span>
+        </div>
+      </div>
+
+      <div class="reveal reveal-delay-2">
+        <div style="background:var(--cream);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.75rem;margin-bottom:1.25rem">
+          <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;margin-bottom:.75rem">Her durum için tam entegrasyon</div>
+          <p style="font-size:.88rem;color:var(--text2);line-height:1.7;margin-bottom:1rem">
+            8 durum; sidebar filtreleri, istatistik kartları, donut grafik dilimleri,
+            Excel aktarımı ve dizin sayfasına tam entegre. Renk kodlamalı badge'lar
+            sayesinde kütüphanenize bakışta tüm durumları ayırt edebilirsiniz.
+          </p>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <span style="background:rgba(74,127,212,.1);color:#4a7fd4;border-radius:999px;font-size:.72rem;padding:.2rem .65rem;border:1px solid rgba(74,127,212,.2)">Filtre</span>
+            <span style="background:rgba(62,207,122,.1);color:#3ecf7a;border-radius:999px;font-size:.72rem;padding:.2rem .65rem;border:1px solid rgba(62,207,122,.2)">İstatistik</span>
+            <span style="background:rgba(212,168,83,.1);color:var(--gold);border-radius:999px;font-size:.72rem;padding:.2rem .65rem;border:1px solid rgba(212,168,83,.2)">Grafik</span>
+            <span style="background:rgba(42,74,53,.1);color:var(--forest);border-radius:999px;font-size:.72rem;padding:.2rem .65rem;border:1px solid rgba(42,74,53,.2)">Excel</span>
+          </div>
+        </div>
+        <div style="background:var(--cream);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:.75rem">Hızlı değiştirme</div>
+          <p style="font-size:.85rem;color:var(--text2);line-height:1.6">
+            Kitap kartı üzerinde hover yapıldığında çıkan hızlı butonlar ve
+            detay modalındaki dropdown ile durum anında değiştirilebilir —
+            sayfayı yenilemeden.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────── EXCEL ────────────────── -->
+<section id="excel">
+  <div class="section-inner">
+    <div class="section-label reveal">Excel Entegrasyonu</div>
+    <h2 class="section-title reveal reveal-delay-1">Veriniz her zaman<br/>sizin kontrolünüzde</h2>
+
+    <div class="excel-layout">
+      <div class="reveal">
+        <div class="excel-flow">
+          <div class="ef-step">
+            <div class="ef-num">1</div>
+            <div class="ef-text">
+              <strong>Şablonu indirin</strong>
+              <span>Tüm sütun başlıkları ve 2 örnek satır içeren hazır Excel şablonunu tek tıkla indirin.</span>
+            </div>
+          </div>
+          <div class="ef-step">
+            <div class="ef-num">2</div>
+            <div class="ef-text">
+              <strong>Kitaplarınızı girin</strong>
+              <span>Excel'de kitap adı, yazar, ISBN, durum ve puan alanlarını doldurun. Tüm 8 durum değeri desteklenir.</span>
+            </div>
+          </div>
+          <div class="ef-step">
+            <div class="ef-num">3</div>
+            <div class="ef-text">
+              <strong>Yükleyin, önizleyin</strong>
+              <span>Dosyayı sürükle-bırak ile yükleyin. Yeni kitaplar yeşil, güncellenecekler mavi ile önizlemede gösterilir.</span>
+            </div>
+          </div>
+          <div class="ef-step">
+            <div class="ef-num">4</div>
+            <div class="ef-text">
+              <strong>Akıllı birleştirme</strong>
+              <span>ISBN veya ID eşleşmesi varsa mevcut kayıt güncellenir, yoksa yeni kitap olarak eklenir. Hiçbir veri silinmez.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal reveal-delay-2">
+        <div class="excel-mockup">
+          <div class="excel-title-bar">📊 biblios_2026-03-01.xlsx</div>
+          <div style="overflow-x:auto">
+            <table class="excel-table">
+              <thead>
+                <tr>
+                  <th>Kitap Adı</th>
+                  <th>Yazar</th>
+                  <th>Durum</th>
+                  <th>Puan</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Suç ve Ceza</td>
+                  <td>Dostoyevski</td>
+                  <td><span class="excel-badge eb-read">✅ okundu</span></td>
+                  <td style="color:var(--gold);font-family:'DM Mono',monospace">★★★★★</td>
+                </tr>
+                <tr>
+                  <td>Dune</td>
+                  <td>Frank Herbert</td>
+                  <td><span class="excel-badge eb-reading">📖 okunuyor</span></td>
+                  <td style="color:var(--gold);font-family:'DM Mono',monospace">★★★★☆</td>
+                </tr>
+                <tr>
+                  <td>Savaş ve Barış</td>
+                  <td>Tolstoy</td>
+                  <td><span class="excel-badge eb-toread">📚 okuyacağım</span></td>
+                  <td style="color:var(--gold);font-family:'DM Mono',monospace">☆☆☆☆☆</td>
+                </tr>
+                <tr>
+                  <td>1984</td>
+                  <td>George Orwell</td>
+                  <td><span class="excel-badge eb-read">✅ okundu</span></td>
+                  <td style="color:var(--gold);font-family:'DM Mono',monospace">★★★★★</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:.85rem;display:flex;gap:.6rem;flex-wrap:wrap">
+          <span style="background:rgba(42,74,53,.1);color:var(--forest);border:1px solid rgba(42,74,53,.2);border-radius:999px;font-size:.72rem;padding:.2rem .65rem">↓ .xlsx dışa aktar</span>
+          <span style="background:rgba(26,39,68,.1);color:var(--navy);border:1px solid rgba(26,39,68,.2);border-radius:999px;font-size:.72rem;padding:.2rem .65rem">↑ içe aktar</span>
+          <span style="background:rgba(184,134,11,.1);color:var(--gold);border:1px solid var(--border);border-radius:999px;font-size:.72rem;padding:.2rem .65rem">📋 şablon</span>
+          <span style="background:rgba(139,58,42,.08);color:var(--rust);border:1px solid rgba(139,58,42,.15);border-radius:999px;font-size:.72rem;padding:.2rem .65rem">.xls · .csv</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────── MOBILE ────────────────── -->
+<section id="mobile">
+  <div class="section-inner">
+    <div class="section-label reveal">Mobil Deneyim</div>
+    <h2 class="section-title reveal reveal-delay-1">Cebinizde tam<br/>kitaplık deneyimi</h2>
+
+    <div class="mobile-layout">
+      <div class="phone-mockup reveal">
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="phone-notch"></div>
+            <div class="ps-header">
+              <span class="ps-logo-t">Biblios</span>
+              <span class="ps-stat">24 kitap</span>
+            </div>
+            <div class="ps-books">
+              <div class="ps-book">
+                <div class="ps-book-cover psbc-1">📘</div>
+                <div class="ps-book-info">
+                  <div class="ps-book-title">Suç ve Ceza</div>
+                  <div class="ps-book-author">Dostoyevski</div>
+                </div>
+              </div>
+              <div class="ps-book">
+                <div class="ps-book-cover psbc-2">📙</div>
+                <div class="ps-book-info">
+                  <div class="ps-book-title">Dune</div>
+                  <div class="ps-book-author">F. Herbert</div>
+                </div>
+              </div>
+              <div class="ps-book">
+                <div class="ps-book-cover psbc-3">📗</div>
+                <div class="ps-book-info">
+                  <div class="ps-book-title">1984</div>
+                  <div class="ps-book-author">G. Orwell</div>
+                </div>
+              </div>
+              <div class="ps-book">
+                <div class="ps-book-cover psbc-4">📕</div>
+                <div class="ps-book-info">
+                  <div class="ps-book-title">Şeker Portakalı</div>
+                  <div class="ps-book-author">J. M. Vasconcelos</div>
+                </div>
+              </div>
+            </div>
+            <div class="ps-bottom-bar">
+              <div class="psb-item a"><div class="psb-item-icon">⊞</div><div>Kitaplık</div></div>
+              <div class="psb-item"><div class="psb-item-icon">▦</div><div>Tara</div></div>
+              <div class="psb-item"><div class="psb-item-icon">+</div><div>Ekle</div></div>
+              <div class="psb-item"><div class="psb-item-icon">#</div><div>Dizin</div></div>
+              <div class="psb-item"><div class="psb-item-icon">…</div><div>Daha</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mobile-features reveal reveal-delay-2">
+        <div class="mf-item">
+          <div class="mf-icon">⬇️</div>
+          <div class="mf-text">
+            <strong>Altta Tab Bar Navigasyonu</strong>
+            <span>860px altında sol menü yerini altta sabit 5 ikonlu tab bar'a bırakır. Kitaplık, Tara, Ekle, Dizin ve Daha Fazla.</span>
+          </div>
+        </div>
+        <div class="mf-item">
+          <div class="mf-icon">⬆️</div>
+          <div class="mf-text">
+            <strong>Bottom Sheet Filtreler</strong>
+            <span>"Daha Fazla" butonuyla yukarı çıkan panel; 8 durum filtresi, İstatistikler, Aktiviteler ve Yedek sayfalarına hızlı erişim sağlar.</span>
+          </div>
+        </div>
+        <div class="mf-item">
+          <div class="mf-icon">📲</div>
+          <div class="mf-text">
+            <strong>Modallar Alttan Açılır</strong>
+            <span>Mobilde tüm modal pencereler ekranın altından yukarı kayarak açılır; native uygulama hissi verir.</span>
+          </div>
+        </div>
+        <div class="mf-item">
+          <div class="mf-icon">📐</div>
+          <div class="mf-text">
+            <strong>iOS Safe Area Desteği</strong>
+            <span><span class="mono" style="font-size:.78rem">env(safe-area-inset-bottom)</span> ile iPhone notch ve home indicator alanlarına tam uyum.</span>
+          </div>
+        </div>
+        <div class="mf-item">
+          <div class="mf-icon">📷</div>
+          <div class="mf-text">
+            <strong>Arka Kamera Öncelikli</strong>
+            <span>Kamera açıldığında otomatik arka kamera seçilir. "Kamera Değiştir" butonu ile ön/arka geçiş yapılabilir.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────── TIMELINE ────────────────── -->
+<section id="timeline">
+  <div class="section-inner">
+
+    <div class="timeline-header">
+      <div>
+        <div class="section-label reveal">Geliştirme Günlüğü</div>
+        <h2 class="section-title reveal reveal-delay-1" style="max-width:100%">
+          Sıfırdan bugüne<br/>her adım
+        </h2>
+        <p class="section-sub reveal reveal-delay-2" style="color:rgba(250,248,244,.5)">
+          Biblios, birkaç oturumda tasarlandı ve iteratif olarak geliştirildi.
+          İşte her özelliğin hangi aşamada eklendiğinin tam kaydı.
+        </p>
+      </div>
+      <div class="tl-legend reveal reveal-delay-3">
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(250,248,244,.3);margin-bottom:.75rem">Kategori Göstergesi</div>
+        <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#6db88a"></div>İlk Kurulum & Temel</div>
+        <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#7ea0d8"></div>Arayüz & Tasarım</div>
+        <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#f0c855"></div>Yeni Özellik</div>
+        <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#e8896a"></div>Hata Düzeltme</div>
+        <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#b89ad4"></div>Mobil & Erişilebilirlik</div>
+      </div>
+    </div>
+
+    <!-- ─── THE TIMELINE ─── -->
+    <div class="tl-track">
+
+      <!-- ENTRY 1 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 1
+          <span class="tl-version">v1.0</span>
+        </div>
+        <div class="tl-cat cat-init">🌱 İlk Kurulum</div>
+        <div class="tl-title">Biblios'un temeli atıldı</div>
+        <div class="tl-desc">
+          Kişisel kütüphane uygulamasının sıfırdan tasarımı. Tek HTML dosyasına sığan,
+          sunucu gerektirmeyen, LocalStorage tabanlı bir uygulama hedeflendi.
+          Cormorant Garamond ve Outfit font ikilisi, koyu lüks tema oluşturuldu.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">Proje başlangıcı</span>
+          <span class="tl-chip">Tek HTML dosyası</span>
+          <span class="tl-chip">LocalStorage kalıcılığı</span>
+          <span class="tl-chip">Koyu lüks tema</span>
+          <span class="tl-chip">Cormorant Garamond</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 2 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 1 — devamı
+          <span class="tl-version">v1.1</span>
+        </div>
+        <div class="tl-cat cat-ui">🎨 Arayüz & Tasarım</div>
+        <div class="tl-title">Tam arayüz tasarımı tamamlandı</div>
+        <div class="tl-desc">
+          Gold/sapphire/emerald/ruby/amber renk paleti oluşturuldu. 
+          Sol sidebar, ana içerik alanı, kitap kartları grid/liste görünümü,
+          modal, toast bildirimleri ve onay diyaloğu tasarlandı.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip">Renk paleti: 5 renk</span>
+          <span class="tl-chip">Grid & Liste görünümü</span>
+          <span class="tl-chip">Kitap kartları</span>
+          <span class="tl-chip">Toast bildirimleri</span>
+          <span class="tl-chip">Onay diyaloğu</span>
+          <span class="tl-chip highlight">Sol sidebar</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 3 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 1 — devamı
+          <span class="tl-version">v1.2</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">ISBN Tarayıcı & Google Books entegrasyonu</div>
+        <div class="tl-desc">
+          Kamera erişimi, BarcodeDetector API ile barkod okuma ve
+          Google Books API entegrasyonu eklendi. Taranan ISBN'den kitap adı,
+          yazar, kapak ve yayınevi bilgisi otomatik dolduruldu.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">Google Books API</span>
+          <span class="tl-chip highlight">BarcodeDetector API</span>
+          <span class="tl-chip">EAN-13 / EAN-8</span>
+          <span class="tl-chip">Kapak otomatik çekme</span>
+          <span class="tl-chip">Son aramalar geçmişi</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 4 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 1 — devamı
+          <span class="tl-version">v1.3</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">İstatistikler & Aktivite Zaman Tüneli</div>
+        <div class="tl-desc">
+          İstatistik sayfasına SVG donut grafik, bar chart ve aylık okuma grafiği eklendi.
+          Aktivite zaman tüneli ile her işlem (ekleme, silme, durum değiştirme) otomatik loglanmaya başlandı.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">SVG Donut grafik</span>
+          <span class="tl-chip">Bar chart</span>
+          <span class="tl-chip">Aylık okuma grafiği</span>
+          <span class="tl-chip">Aktivite logu</span>
+          <span class="tl-chip">Filtreli zaman tüneli</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 5 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 1 — devamı
+          <span class="tl-version">v1.4</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">JSON Yedekleme & Geri Yükleme</div>
+        <div class="tl-desc">
+          Tüm kitaplığı JSON formatında dışa aktarma ve daha önce alınan yedekten geri yükleme
+          özelliği eklendi. Yedekleme sayfası, tehlikeli alan (tüm veriyi sıfırla) ile birlikte tasarlandı.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip">JSON export</span>
+          <span class="tl-chip">JSON import</span>
+          <span class="tl-chip">Yedekleme sayfası</span>
+          <span class="tl-chip">Veri sıfırlama</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 6 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 2
+          <span class="tl-version">v2.0</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">4 Yeni kitap durumu eklendi</div>
+        <div class="tl-desc">
+          Kullanıcı talebi ile durum sistemi 4'ten 8'e çıkarıldı. "Sahip Olduğum",
+          "Ödünç Aldım", "Ödünç Verdim", "İstek Listesi" durumları Türkçe etiketlerle eklendi.
+          Yeni renkler (violet, teal, rose, slate) palete dahil edildi.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">📦 Sahip Olduğum</span>
+          <span class="tl-chip highlight">🤝 Ödünç Aldım</span>
+          <span class="tl-chip highlight">↗️ Ödünç Verdim</span>
+          <span class="tl-chip highlight">⭐ İstek Listesi</span>
+          <span class="tl-chip">4 yeni renk değişkeni</span>
+          <span class="tl-chip">Donut grafik güncellendi</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 7 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 2 — devamı
+          <span class="tl-version">v2.1</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">Excel Aktarım Sistemi (SheetJS)</div>
+        <div class="tl-desc">
+          SheetJS entegrasyonu ile Excel dışa aktarma, şablon indirme ve
+          akıllı birleştirmeli içe aktarma özellikleri eklendi. Sürükle-bırak
+          dosya yükleme ve önizleme tablosu ile kullanıcı deneyimi güçlendirildi.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">SheetJS entegrasyonu</span>
+          <span class="tl-chip">.xlsx dışa aktarma</span>
+          <span class="tl-chip">Şablon indirme</span>
+          <span class="tl-chip">Akıllı birleştirme</span>
+          <span class="tl-chip">Sürükle-bırak yükleme</span>
+          <span class="tl-chip">Önizleme tablosu</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 8 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 3
+          <span class="tl-version">v2.2</span>
+        </div>
+        <div class="tl-cat cat-fix">🔧 Hata Düzeltme</div>
+        <div class="tl-title">Barkod tarama ve kamera düzeltmeleri</div>
+        <div class="tl-desc">
+          Excel entegrasyonu sonrası barkod okumanın bozulduğu tespit edildi.
+          SheetJS'in sayfa yüklenişini blokladığı anlaşıldı — kütüphane lazy
+          (gerektiğinde) yüklemeye geçirildi. Kamera akışı video hazır olmadan
+          detect() çağırma sorunu da giderildi.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">SheetJS lazy load</span>
+          <span class="tl-chip">canplay event bekleme</span>
+          <span class="tl-chip">BarcodeDetector düzeltme</span>
+          <span class="tl-chip">Hata yönetimi iyileştirme</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 9 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 3 — devamı
+          <span class="tl-version">v2.3</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">Kamera: arka kamera öncelikli + durum göstergesi</div>
+        <div class="tl-desc">
+          Kamera açıldığında önce arka (environment) kamera talep edilmesi sağlandı.
+          Barkod tarama durumu için animasyonlu gösterge eklendi: "Aranıyor",
+          "Okundu", "Desteklenmiyor" halleri renk kodlu olarak gösterilir.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">Arka kamera öncelikli</span>
+          <span class="tl-chip">Kamera etiketi overlay</span>
+          <span class="tl-chip">Animasyonlu durum göstergesi</span>
+          <span class="tl-chip">Kamera değiştir butonu</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 10 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 3 — devamı
+          <span class="tl-version">v2.4</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">Kitap Düzenleme Modalı</div>
+        <div class="tl-desc">
+          Eklenen her kitabın baştan sona düzenlenebileceği tam özellikli modal eklendi.
+          Kapak URL'si anlık önizleme, 5 yıldız puan seçici, durum dropdown.
+          Kart hover'ında ve detay modalında "Düzenle" butonu çıkar.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">Tam düzenleme modalı</span>
+          <span class="tl-chip">Kapak URL önizleme</span>
+          <span class="tl-chip">5 yıldız puan seçici</span>
+          <span class="tl-chip">Kart hover düzenle butonu</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 11 -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 3 — devamı
+          <span class="tl-version">v2.5</span>
+        </div>
+        <div class="tl-cat cat-feat">✨ Yeni Özellik</div>
+        <div class="tl-title">Dizin & Keşfet Sayfası</div>
+        <div class="tl-desc">
+          Yazar, yayınevi ve duruma göre kitap indeksleme özelliği eklendi.
+          Her yazarın/yayınevinin kaç kitabına sahip olunduğu görülebilir;
+          tıklandığında o gruba ait tüm kitaplar listelenir.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">Yazar indeksi</span>
+          <span class="tl-chip highlight">Yayınevi indeksi</span>
+          <span class="tl-chip">Durum bazlı gruplama</span>
+          <span class="tl-chip">İçi arama</span>
+          <span class="tl-chip">Detay drill-down</span>
+        </div>
+      </div>
+
+      <!-- ENTRY 12 — LATEST -->
+      <div class="tl-entry reveal">
+        <div class="tl-date">
+          Oturum 4
+          <span class="tl-version" style="background:rgba(184,184,212,.15);border-color:rgba(184,184,212,.3);color:#b8bad4">v3.0 — Güncel</span>
+        </div>
+        <div class="tl-cat cat-mob">📱 Mobil & Erişilebilirlik</div>
+        <div class="tl-title">Tam mobil uyumluluk: Alt Tab Bar & Bottom Sheet <span class="badge-new">YENİ</span></div>
+        <div class="tl-desc">
+          Ekran 860px'in altına geçtiğinde sol menü kaybolup alttan sabit bir tab bar açılıyor.
+          "Daha Fazla" butonuyla yukarı kayan bottom sheet'te durum filtreleri ve tüm sayfalara hızlı erişim mevcut.
+          iOS safe area, bottom modal, kompakt kart düzeni ile tam native uygulama deneyimi.
+        </div>
+        <div class="tl-chips">
+          <span class="tl-chip highlight">Altta Tab Bar (5 ikon)</span>
+          <span class="tl-chip highlight">Bottom Sheet filtreler</span>
+          <span class="tl-chip">Modallar alttan açılır</span>
+          <span class="tl-chip">iOS safe area</span>
+          <span class="tl-chip">Kompakt 480px düzeni</span>
+          <span class="tl-chip">Responsive breakpoint iyileştirme</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────── CTA ────────────────── -->
+<section id="cta">
+  <div class="section-inner">
+    <div class="section-label">Hemen Başlayın</div>
+    <div class="cta-title">Kitaplığınız sizi bekliyor</div>
+    <p class="cta-sub">
+      Hesap yok, kurulum yok, internet bağlantısı gerekmez.
+      Tek HTML dosyasını açın ve kitap eklemeye başlayın.
+    </p>
+    <a class="btn-cta" href="https://ridwanxelil.github.io/kitapligim/" target="_blank">
+      📖 Biblios'u Aç →
+    </a>
+  </div>
+</section>
+
+<!-- ────────────────── FOOTER ────────────────── -->
+<footer>
+  <span class="footer-logo">Biblios</span>
+  <span>Kişisel kullanım için tasarlandı · Tüm veriler yerel olarak saklanır</span>
+  <span>v3.0 · 2026</span>
+</footer>
+
+<script>
+/* ── Nav scroll effect ── */
+const mainNav = document.getElementById('mainNav');
+window.addEventListener('scroll', () => {
+  mainNav.classList.toggle('scrolled', window.scrollY > 20);
+}, { passive: true });
+
+/* ── Scroll reveal ── */
+const revealEls = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+revealEls.forEach(el => io.observe(el));
+
+/* ── Hero stat counter animation ── */
+function animateCount(el, target, suffix) {
+  let current = 0;
+  const step = Math.max(1, Math.floor(target / 40));
+  const interval = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current + (suffix || '');
+    if (current >= target) clearInterval(interval);
+  }, 40);
+}
+
+// Only animate numeric stats
+const statEls = document.querySelectorAll('.hstat-num');
+const heroIo = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const text = e.target.textContent;
+      if (text === '8') animateCount(e.target, 8);
+      else if (text === '1') animateCount(e.target, 1);
+      else if (text === '0') animateCount(e.target, 0);
+      heroIo.unobserve(e.target);
+    }
+  });
+}, { threshold: 1 });
+statEls.forEach(el => heroIo.observe(el));
+
+/* ── Timeline chip hover wobble ── */
+document.querySelectorAll('.tl-chip').forEach(c => {
+  c.style.cursor = 'default';
+});
+</script>
+</body>
+</html>
