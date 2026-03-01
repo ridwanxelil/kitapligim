@@ -1498,7 +1498,189 @@ body::before {
 .sidebar-toggle:hover { color: var(--gold); }
 
 /* ═══════════════════════════════════════════════
-   RESPONSIVE
+   BOTTOM TAB BAR (mobil navigasyon)
+═══════════════════════════════════════════════ */
+.bottom-nav {
+  display: none; /* masaüstünde gizli */
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 62px;
+  background: rgba(7,7,15,.97);
+  backdrop-filter: blur(24px) saturate(1.8);
+  border-top: 1px solid var(--border2);
+  z-index: 1100;
+  align-items: stretch;
+  justify-content: space-around;
+  padding: 0 .25rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px); /* iOS safe area */
+}
+.bn-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: .55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  cursor: pointer;
+  font-family: var(--ff-sans);
+  padding: .35rem .1rem;
+  border-radius: var(--r-sm);
+  transition: color .18s;
+  position: relative;
+}
+.bn-item i {
+  font-size: 1.15rem;
+  transition: transform .18s, color .18s;
+}
+.bn-item.active {
+  color: var(--gold);
+}
+.bn-item.active i {
+  transform: translateY(-2px);
+}
+.bn-item .bn-badge {
+  position: absolute;
+  top: 4px;
+  right: 18%;
+  background: var(--gold);
+  color: var(--bg);
+  border-radius: 999px;
+  font-size: .48rem;
+  font-weight: 900;
+  padding: 1px 4px;
+  min-width: 14px;
+  text-align: center;
+  line-height: 1.4;
+  font-family: var(--ff-mono);
+  display: none;
+}
+.bn-item .bn-badge.visible { display: block; }
+
+/* Bottom sheet (mobilde sidebar içeriği) */
+.bottom-sheet-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  z-index: 1050;
+  backdrop-filter: blur(4px);
+}
+.bottom-sheet-overlay.open { display: block; }
+.bottom-sheet {
+  position: fixed;
+  bottom: 62px; /* tab bar yüksekliği kadar yukarı */
+  left: 0; right: 0;
+  background: var(--card);
+  border-top: 1px solid var(--border2);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  z-index: 1060;
+  padding: 1.25rem 1rem 1rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,0,.67,0);
+}
+.bottom-sheet.open {
+  transform: translateY(0);
+}
+.bs-handle {
+  width: 36px; height: 4px;
+  background: var(--border2);
+  border-radius: 999px;
+  margin: 0 auto 1.2rem;
+}
+.bs-section {
+  margin-bottom: 1.25rem;
+}
+.bs-section-label {
+  font-size: .62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--text3);
+  margin-bottom: .55rem;
+  padding: 0 .25rem;
+}
+.bs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+}
+.bs-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .35rem;
+  padding: .75rem .35rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text2);
+  font-family: var(--ff-sans);
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: var(--tr);
+  text-align: center;
+}
+.bs-btn i { font-size: 1rem; }
+.bs-btn.active, .bs-btn:active {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border-color: rgba(212,168,83,.25);
+}
+.bs-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .4rem;
+}
+.bs-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .6rem .75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  color: var(--text2);
+  font-family: var(--ff-sans);
+  font-size: .76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--tr);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bs-filter-btn .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  opacity: .6;
+}
+.bs-filter-btn.active {
+  background: rgba(255,255,255,.05);
+  border-color: rgba(255,255,255,.12);
+}
+.bs-filter-btn.active .dot { opacity: 1; }
+.bs-filter-count {
+  margin-left: auto;
+  font-family: var(--ff-mono);
+  font-size: .62rem;
+  color: var(--text3);
+}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — TABLET (≤1100px)
 ═══════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   .charts-row { grid-template-columns: 1fr; }
@@ -1506,26 +1688,110 @@ body::before {
   .scanner-layout { grid-template-columns: 1fr; }
 }
 
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — MOBILE (≤860px)
+   Sidebar kaybolur, alt tab bar gelir
+═══════════════════════════════════════════════ */
 @media (max-width: 860px) {
-  :root { --sidebar-w: 0px; }
-  .sidebar {
-    transform: translateX(-260px);
-    width: 260px;
+  :root {
+    --sidebar-w: 0px;
+    --header-h: 56px;
   }
-  .sidebar.open { transform: translateX(0); }
-  .main { margin-left: 0; padding: 1.25rem; }
-  .sidebar-toggle { display: flex; }
+
+  /* Sidebar tamamen gizle */
+  .sidebar { display: none !important; }
+  .sidebar-backdrop { display: none !important; }
+  .sidebar-toggle { display: none !important; }
+
+  /* Alt tab bar göster */
+  .bottom-nav { display: flex; }
+
+  /* İçerik alanı alt bar için boşluk bırak */
+  .main {
+    margin-left: 0;
+    padding: 1rem .85rem;
+    padding-bottom: calc(62px + .5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Header düzenleme */
+  .header { padding: 0 1rem; }
+  .logo-text { font-size: 1.45rem; }
+  .logo-sub { display: none; }
+  .header-stats { gap: .35rem; }
+  .hstat { padding: .25rem .6rem; font-size: .72rem; }
+  .hstat:nth-child(n+2) { display: none; } /* sadece ilk stat göster */
+
+  /* Kitap ızgarası */
   .backup-grid { grid-template-columns: 1fr; }
   .f-row { grid-template-columns: 1fr; }
-  .book-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
-  .book-card .cover, .book-card .cover-ph { height: 190px; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .book-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: .7rem; }
+  .book-card .cover, .book-card .cover-ph { height: 185px; }
+
+  /* İstatistikler */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: .65rem; }
+
+  /* Edit modal */
+  .edit-cover-row { flex-direction: column; }
+  .edit-cover-preview { width: 100%; height: 160px; }
+  .edit-f-row { grid-template-columns: 1fr; }
+
+  /* Sayfa başlığı */
+  .pg-title { font-size: 1.5rem; }
+  .pg-subtitle { font-size: .78rem; }
+  .pg-header { flex-direction: column; align-items: flex-start; gap: .75rem; }
+  .pg-header-actions { flex-wrap: wrap; gap: .4rem; }
+
+  /* Modaller tam ekran mobilde */
+  .modal-box {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    position: fixed;
+    bottom: 0;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+
+  /* Index sayfası */
+  .index-grid { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .index-card { padding: .75rem .85rem; }
+
+  /* Scanner */
+  .scanner-layout { grid-template-columns: 1fr; }
+  .scan-card { padding: 1.25rem; }
+
+  /* Timeline */
+  .feature-chips { flex-wrap: wrap; gap: .4rem; }
+  .chip { font-size: .7rem; padding: .3rem .7rem; }
+
+  /* Versiyon kartları */
+  .version-card { padding: 1rem; }
 }
 
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — KÜÇİK MOBIL (≤480px)
+═══════════════════════════════════════════════ */
 @media (max-width: 480px) {
-  .book-grid { grid-template-columns: repeat(2, 1fr); gap: .8rem; }
-  .header-stats .hstat:last-child { display: none; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .main { padding: .85rem .65rem; padding-bottom: calc(62px + .5rem); }
+  .book-grid { grid-template-columns: repeat(2, 1fr); gap: .6rem; }
+  .book-card .cover, .book-card .cover-ph { height: 165px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .index-grid { grid-template-columns: 1fr 1fr; }
+  .index-card { padding: .6rem .75rem; }
+  .index-avatar { width: 36px; height: 36px; font-size: 1rem; }
+  .scan-tabs { flex-direction: row; }
+
+  /* Başlık daha kompakt */
+  .logo-mark { width: 32px; height: 32px; font-size: .9rem; }
+  .logo-text { font-size: 1.25rem; }
+  .header-stats { display: none; }
+
+  /* Kitap kartı daha kompakt */
+  .card-body { padding: .65rem .7rem; }
+  .card-title { font-size: .8rem; -webkit-line-clamp: 1; }
+  .card-author { display: none; }
 }
 
 /* ═══════════════════════════════════════════════
@@ -1951,6 +2217,99 @@ body::before {
 
 <!-- SIDEBAR BACKDROP (mobile) -->
 <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+<!-- BOTTOM NAV (mobil tab bar) -->
+<nav class="bottom-nav" id="bottomNav">
+  <button class="bn-item active" id="bn-library" onclick="nav('library')">
+    <i class="fa-solid fa-th-large"></i>
+    <span>Kitaplık</span>
+    <span class="bn-badge" id="bnTotal"></span>
+  </button>
+  <button class="bn-item" id="bn-scanner" onclick="nav('scanner')">
+    <i class="fa-solid fa-barcode"></i>
+    <span>Tara</span>
+  </button>
+  <button class="bn-item" id="bn-add" onclick="nav('add')">
+    <i class="fa-solid fa-plus"></i>
+    <span>Ekle</span>
+  </button>
+  <button class="bn-item" id="bn-index" onclick="nav('index')">
+    <i class="fa-solid fa-tags"></i>
+    <span>Dizin</span>
+  </button>
+  <button class="bn-item" id="bn-more" onclick="openBottomSheet()">
+    <i class="fa-solid fa-ellipsis"></i>
+    <span>Daha Fazla</span>
+  </button>
+</nav>
+
+<!-- BOTTOM SHEET (mobil'de filtreler + daha fazla menü) -->
+<div class="bottom-sheet-overlay" id="bsOverlay" onclick="closeBottomSheet()"></div>
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="bs-handle"></div>
+
+  <!-- Hızlı sayfalar -->
+  <div class="bs-section">
+    <div class="bs-section-label">Sayfalar</div>
+    <div class="bs-grid">
+      <button class="bs-btn" onclick="nav('stats');closeBottomSheet()">
+        <i class="fa-solid fa-chart-pie"></i>İstatistik
+      </button>
+      <button class="bs-btn" onclick="nav('timeline');closeBottomSheet()">
+        <i class="fa-solid fa-clock-rotate-left"></i>Aktivite
+      </button>
+      <button class="bs-btn" onclick="nav('backup');closeBottomSheet()">
+        <i class="fa-solid fa-database"></i>Yedek
+      </button>
+      <button class="bs-btn" id="bsMoreLibrary" onclick="nav('library');closeBottomSheet()">
+        <i class="fa-solid fa-books"></i>Tüm Liste
+      </button>
+    </div>
+  </div>
+
+  <!-- Durum filtreleri -->
+  <div class="bs-section">
+    <div class="bs-section-label">Durum Filtresi</div>
+    <div class="bs-filter-grid">
+      <button class="bs-filter-btn active" id="bf-all" onclick="setFilter('all');closeBottomSheet()">
+        <span class="dot" style="background:var(--text2)"></span>Tümü
+        <span class="bs-filter-count" id="bfAll">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-reading" onclick="setFilter('reading');closeBottomSheet()" style="color:var(--sapphire)">
+        <span class="dot"></span>Okunuyor
+        <span class="bs-filter-count" id="bfReading">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-read" onclick="setFilter('read');closeBottomSheet()" style="color:var(--emerald)">
+        <span class="dot"></span>Okundu
+        <span class="bs-filter-count" id="bfRead">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-toread" onclick="setFilter('toread');closeBottomSheet()" style="color:var(--gold)">
+        <span class="dot"></span>Okuyacağım
+        <span class="bs-filter-count" id="bfToread">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-paused" onclick="setFilter('paused');closeBottomSheet()" style="color:var(--amber)">
+        <span class="dot"></span>Bırakıldı
+        <span class="bs-filter-count" id="bfPaused">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-owned" onclick="setFilter('owned');closeBottomSheet()" style="color:var(--violet)">
+        <span class="dot"></span>Sahip Olduğum
+        <span class="bs-filter-count" id="bfOwned">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-borrowed" onclick="setFilter('borrowed');closeBottomSheet()" style="color:var(--teal)">
+        <span class="dot"></span>Ödünç Aldım
+        <span class="bs-filter-count" id="bfBorrowed">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-lent" onclick="setFilter('lent');closeBottomSheet()" style="color:var(--rose)">
+        <span class="dot"></span>Ödünç Verdim
+        <span class="bs-filter-count" id="bfLent">0</span>
+      </button>
+      <button class="bs-filter-btn" id="bf-wishlist" onclick="setFilter('wishlist');closeBottomSheet()" style="color:var(--slate)">
+        <span class="dot"></span>İstek Listem
+        <span class="bs-filter-count" id="bfWishlist">0</span>
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- LAYOUT -->
 <div class="layout">
@@ -2745,10 +3104,18 @@ let _scanHistory = [];
 ═══════════════════════════════════════════════ */
 function nav(pId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('p-' + pId).classList.add('active');
+  const page = document.getElementById('p-' + pId);
+  if (page) page.classList.add('active');
+
+  // Masaüstü sidebar aktif durumu
   document.querySelectorAll('.sb-nav button').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('n-' + pId);
   if (btn) btn.classList.add('active');
+
+  // Mobil bottom nav aktif durumu
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  const bnBtn = document.getElementById('bn-' + pId);
+  if (bnBtn) bnBtn.classList.add('active');
 
   if (pId !== 'scanner') stopCam();
   if (pId === 'library') renderLib();
@@ -2757,7 +3124,7 @@ function nav(pId) {
   if (pId === 'backup') updateBackupInfo();
   if (pId === 'index') { switchIndex(_indexMode || 'author'); }
 
-  // Close sidebar on mobile
+  // Mobil'de sidebar kapat
   if (window.innerWidth <= 860) closeSidebar();
   window.scrollTo(0, 0);
 }
@@ -2773,10 +3140,29 @@ function closeSidebar() {
   document.getElementById('sidebarBackdrop').classList.remove('open');
 }
 
+/* ─── Bottom Sheet (mobil menü) ─── */
+function openBottomSheet() {
+  document.getElementById('bsOverlay').classList.add('open');
+  document.getElementById('bottomSheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeBottomSheet() {
+  document.getElementById('bsOverlay').classList.remove('open');
+  document.getElementById('bottomSheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 function setFilter(f) {
   _filter = f;
+  // Sidebar (masaüstü)
   document.querySelectorAll('.sb-status-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('f-' + f).classList.add('active');
+  const sbBtn = document.getElementById('f-' + f);
+  if (sbBtn) sbBtn.classList.add('active');
+  // Bottom sheet (mobil)
+  document.querySelectorAll('.bs-filter-btn').forEach(b => b.classList.remove('active'));
+  const bsBtn = document.getElementById('bf-' + f);
+  if (bsBtn) bsBtn.classList.add('active');
   renderLib();
 }
 
@@ -2811,30 +3197,37 @@ function updateHeader() {
   const lent = lib.filter(b => b.status === 'lent').length;
   const wishlist = lib.filter(b => b.status === 'wishlist').length;
 
-  document.getElementById('hTotal').innerText = total;
-  document.getElementById('hReading').innerText = reading;
-  document.getElementById('hRead').innerText = read;
-  document.getElementById('sbTotal').innerText = total;
-  document.getElementById('fAll').innerText = total;
-  document.getElementById('fReading').innerText = reading;
-  document.getElementById('fRead').innerText = read;
-  document.getElementById('fToread').innerText = toread;
-  document.getElementById('fPaused').innerText = paused;
-  document.getElementById('fOwned').innerText = owned;
-  document.getElementById('fBorrowed').innerText = borrowed;
-  document.getElementById('fLent').innerText = lent;
-  document.getElementById('fWishlist').innerText = wishlist;
+  // Header
+  const _set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  _set('hTotal', total); _set('hReading', reading); _set('hRead', read);
 
-  // Sidebar mini bars (show reading + read + toread + paused)
+  // Sidebar (masaüstü)
+  _set('sbTotal', total);
+  _set('fAll', total); _set('fReading', reading); _set('fRead', read);
+  _set('fToread', toread); _set('fPaused', paused);
+  _set('fOwned', owned); _set('fBorrowed', borrowed);
+  _set('fLent', lent); _set('fWishlist', wishlist);
+
+  // Sidebar mini bars
   const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
-  document.getElementById('qbReading').style.width = pct(reading) + '%';
-  document.getElementById('qbRead').style.width = pct(read) + '%';
-  document.getElementById('qbToread').style.width = pct(toread) + '%';
-  document.getElementById('qbPaused').style.width = pct(paused) + '%';
-  document.getElementById('qnReading').innerText = reading;
-  document.getElementById('qnRead').innerText = read;
-  document.getElementById('qnToread').innerText = toread;
-  document.getElementById('qnPaused').innerText = paused;
+  const _sw = (id, v) => { const el = document.getElementById(id); if(el) el.style.width = v; };
+  _sw('qbReading', pct(reading)+'%'); _sw('qbRead', pct(read)+'%');
+  _sw('qbToread', pct(toread)+'%'); _sw('qbPaused', pct(paused)+'%');
+  _set('qnReading', reading); _set('qnRead', read);
+  _set('qnToread', toread); _set('qnPaused', paused);
+
+  // Bottom nav badge (mobil)
+  const bnBadge = document.getElementById('bnTotal');
+  if (bnBadge) {
+    if (total > 0) { bnBadge.textContent = total; bnBadge.classList.add('visible'); }
+    else { bnBadge.classList.remove('visible'); }
+  }
+
+  // Bottom sheet filtreler (mobil)
+  _set('bfAll', total); _set('bfReading', reading); _set('bfRead', read);
+  _set('bfToread', toread); _set('bfPaused', paused);
+  _set('bfOwned', owned); _set('bfBorrowed', borrowed);
+  _set('bfLent', lent); _set('bfWishlist', wishlist);
 }
 
 /* ═══════════════════════════════════════════════
@@ -3394,7 +3787,7 @@ function closeModal() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal(); closeEditModal(); closeConfirm(false); closeXlModal(); }
+  if (e.key === 'Escape') { closeModal(); closeEditModal(); closeConfirm(false); closeXlModal(); closeBottomSheet(); }
 });
 
 /* ═══════════════════════════════════════════════
