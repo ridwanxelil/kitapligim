@@ -2443,7 +2443,13 @@ body::before {
         <div>
           <div class="scan-card">
             <div class="scan-card-title"><i class="fa-solid fa-barcode"></i> Kitap Ara</div>
-            <p class="scan-card-sub">Google Books API üzerinden milyonlarca kitaba ulaşın.</p>
+            <p class="scan-card-sub">4 veritabanında sırayla arama yapılır — ilk bulunan gösterilir</p>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem">
+              <span style="background:rgba(74,127,212,.1);color:#4a7fd4;border:1px solid rgba(74,127,212,.2);border-radius:999px;font-size:.65rem;font-weight:700;padding:.18rem .55rem;font-family:var(--ff-mono)">1 Google Books</span>
+              <span style="background:rgba(62,207,122,.1);color:#3ecf7a;border:1px solid rgba(62,207,122,.2);border-radius:999px;font-size:.65rem;font-weight:700;padding:.18rem .55rem;font-family:var(--ff-mono)">2 Open Library</span>
+              <span style="background:rgba(240,164,41,.1);color:var(--amber);border:1px solid rgba(240,164,41,.2);border-radius:999px;font-size:.65rem;font-weight:700;padding:.18rem .55rem;font-family:var(--ff-mono)">3 KitAPI 🇹🇷</span>
+              <span style="background:rgba(155,114,212,.1);color:var(--violet);border:1px solid rgba(155,114,212,.2);border-radius:999px;font-size:.65rem;font-weight:700;padding:.18rem .55rem;font-family:var(--ff-mono)">4 ISBN-API</span>
+            </div>
 
             <div class="scan-tabs">
               <button class="tab-btn active" id="tab-cam" onclick="switchTab('cam')"><i class="fa-solid fa-camera"></i> Kamera</button>
@@ -3376,37 +3382,143 @@ async function searchByIsbn() {
   btn.innerHTML = `<span class="spin"></span> Aranıyor...`;
   btn.disabled = true;
 
-  const book = await fetchBook(val);
+  const result = await fetchBook(val);
   btn.innerHTML = `<i class="fa-solid fa-search"></i> Ara`;
   btn.disabled = false;
 
-  if (book) {
-    showScanResult(book);
-    addScanHistory(book);
+  if (result) {
+    showScanResult(result.book);
+    addScanHistory(result.book);
+    const src = result.source;
+    const srcLabel = { google: 'Google Books', openlibrary: 'Open Library', kitapi: 'KitAPI (TR)', isbn_api: 'ISBN API' }[src] || src;
+    toast(`"${result.book.title}" bulundu — kaynak: ${srcLabel}`, 'success');
   } else {
-    toast('Kitap bulunamadı. ISBN numarasını kontrol edin.', 'error');
+    toast('Kitap 4 veritabanında da bulunamadı. ISBN numarasını kontrol edin.', 'error');
   }
 }
 
+/* ═══════════════════════════════════════════════
+   MULTI-SOURCE BOOK FETCH
+   Sıra: 1) Google Books  2) Open Library
+         3) KitAPI (TR)   4) ISBN-API.com
+═══════════════════════════════════════════════ */
 async function fetchBook(isbn) {
-  try {
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1`);
-    const data = await res.json();
-    if (!data.items || data.items.length === 0) return null;
-    const info = data.items[0].volumeInfo;
-    return {
-      title: info.title || 'Bilinmiyor',
-      author: info.authors ? info.authors.join(', ') : 'Bilinmiyor',
-      isbn: isbn,
-      publisher: info.publisher || '',
-      pages: info.pageCount || 0,
-      cover: info.imageLinks ? info.imageLinks.thumbnail.replace('http:', 'https:') : '',
-      note: info.description ? info.description.substring(0, 250) + '...' : ''
-    };
-  } catch (e) {
-    console.error(e);
-    return null;
+  // Her kaynak bir {book, source} veya null döner
+  const sources = [
+    () => fetchFromGoogle(isbn),
+    () => fetchFromOpenLibrary(isbn),
+    () => fetchFromKitapi(isbn),
+    () => fetchFromIsbnApi(isbn),
+  ];
+
+  for (const fn of sources) {
+    try {
+      const result = await fn();
+      if (result) return result;
+    } catch (e) {
+      console.warn('fetchBook source error:', e);
+    }
   }
+  return null;
+}
+
+// ── 1. Google Books ──────────────────────────
+async function fetchFromGoogle(isbn) {
+  const res = await fetch(
+    `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1`,
+    { signal: AbortSignal.timeout(6000) }
+  );
+  const data = await res.json();
+  if (!data.items?.length) return null;
+  const info = data.items[0].volumeInfo;
+  return {
+    source: 'google',
+    book: {
+      title:     info.title || '',
+      author:    info.authors?.join(', ') || '',
+      isbn,
+      publisher: info.publisher || '',
+      pages:     info.pageCount || 0,
+      cover:     info.imageLinks?.thumbnail?.replace('http:', 'https:') || '',
+      note:      info.description ? info.description.substring(0, 300) : ''
+    }
+  };
+}
+
+// ── 2. Open Library (Internet Archive) ──────
+async function fetchFromOpenLibrary(isbn) {
+  const res = await fetch(
+    `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=details&format=json`,
+    { signal: AbortSignal.timeout(7000) }
+  );
+  const data = await res.json();
+  const entry = data[`ISBN:${isbn}`];
+  if (!entry) return null;
+  const d = entry.details || {};
+  const authors = (d.authors || []).map(a => a.name || '').filter(Boolean).join(', ');
+  const coverId = d.covers?.[0];
+  const cover = coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : (entry.thumbnail_url || '');
+  return {
+    source: 'openlibrary',
+    book: {
+      title:     d.title || '',
+      author:    authors,
+      isbn,
+      publisher: d.publishers?.[0] || '',
+      pages:     d.number_of_pages || 0,
+      cover:     cover.replace('http:', 'https:'),
+      note:      d.subtitle || ''
+    }
+  };
+}
+
+// ── 3. KitAPI — Türkçe kitaplar ─────────────
+async function fetchFromKitapi(isbn) {
+  const res = await fetch(
+    `https://kitapi.net/api/books/isbn/${isbn}`,
+    { signal: AbortSignal.timeout(7000) }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  // KitAPI bazen dizi, bazen obje döner
+  const item = Array.isArray(data) ? data[0] : (data.message?.[0] || data);
+  if (!item?.kitap_adi && !item?.title) return null;
+  const bi = item.kitap_bilgileri || {};
+  return {
+    source: 'kitapi',
+    book: {
+      title:     item.kitap_adi || item.title || '',
+      author:    item.yazar || item.author || '',
+      isbn,
+      publisher: item.yayinevi || item.publisher || '',
+      pages:     parseInt(bi['Sayfa Sayısı:'] || item.pages || 0) || 0,
+      cover:     item.kapak || item.cover || '',
+      note:      item.aciklama || ''
+    }
+  };
+}
+
+// ── 4. ISBN-API.com ──────────────────────────
+async function fetchFromIsbnApi(isbn) {
+  const res = await fetch(
+    `https://isbn-api.com/book/isbn/${isbn}`,
+    { signal: AbortSignal.timeout(7000) }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data?.title) return null;
+  return {
+    source: 'isbn_api',
+    book: {
+      title:     data.title || '',
+      author:    Array.isArray(data.authors) ? data.authors.join(', ') : (data.author || ''),
+      isbn,
+      publisher: data.publisher || '',
+      pages:     data.pages || 0,
+      cover:     data.cover || data.image || '',
+      note:      data.synopsis || data.description || ''
+    }
+  };
 }
 
 function showScanResult(book) {
@@ -3568,11 +3680,19 @@ async function startCam() {
             active = false;
             const val = codes[0].rawValue;
             setBarcodeStatus('found', `✅ Barkod okundu: ${val}`);
-            setTimeout(() => {
+            setTimeout(async () => {
               stopCam();
-              document.getElementById('isbnInp').value = val;
-              switchTab('isbn');
-              searchByIsbn();
+              const result = await fetchBook(val);
+              if (result) {
+                showScanResult(result.book);
+                addScanHistory(result.book);
+                const srcLabel = { google: 'Google Books', openlibrary: 'Open Library', kitapi: 'KitAPI (TR)', isbn_api: 'ISBN API' }[result.source] || result.source;
+                toast(`"${result.book.title}" bulundu — ${srcLabel}`, 'success');
+              } else {
+                document.getElementById('isbnInp').value = val;
+                switchTab('isbn');
+                toast('Otomatik bulunamadı. ISBN ile manuel arayabilirsiniz.', 'warning');
+              }
             }, 700);
           } else {
             requestAnimationFrame(loop);
