@@ -6,6 +6,7 @@
 <title>Biblios — Kişisel Kütüphanem</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230a0a0f'/%3E%3Cpath d='M25 20h35c5.5 0 10 4.5 10 10v42c0 5.5-4.5 10-10 10H25V20z' fill='%23d4a853'/%3E%3Cpath d='M25 20v62H20c-2.8 0-5-2.2-5-5V25c0-2.8 2.2-5 5-5h5z' fill='%23b8893d'/%3E%3Crect x='33' y='35' width='26' height='3' rx='1.5' fill='%230a0a0f' opacity='.6'/%3E%3Crect x='33' y='43' width='20' height='3' rx='1.5' fill='%230a0a0f' opacity='.6'/%3E%3Crect x='33' y='51' width='23' height='3' rx='1.5' fill='%230a0a0f' opacity='.5'/%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 /* ═══════════════════════════════════════════════
@@ -33,6 +34,14 @@
   --ruby-dim: rgba(224,92,92,.12);
   --amber: #f0a429;
   --amber-dim: rgba(240,164,41,.12);
+  --violet: #9b72d4;
+  --violet-dim: rgba(155,114,212,.12);
+  --teal: #2ec4b6;
+  --teal-dim: rgba(46,196,182,.12);
+  --rose: #e8698a;
+  --rose-dim: rgba(232,105,138,.12);
+  --slate: #8899aa;
+  --slate-dim: rgba(136,153,170,.12);
 
   --text: #e8e4dc;
   --text2: #a89e8e;
@@ -542,6 +551,10 @@ body::before {
 .b-read { background: var(--emerald-dim); color: var(--emerald); }
 .b-toread { background: var(--gold-dim); color: var(--gold); }
 .b-paused { background: var(--amber-dim); color: var(--amber); }
+.b-owned { background: var(--violet-dim); color: var(--violet); }
+.b-borrowed { background: var(--teal-dim); color: var(--teal); }
+.b-lent { background: var(--rose-dim); color: var(--rose); }
+.b-wishlist { background: var(--slate-dim); color: var(--slate); }
 
 /* ═══════════════════════════════════════════════
    BOOK GRID
@@ -1528,6 +1541,152 @@ body::before {
 }
 .sidebar-backdrop.open { display: block; }
 
+/* ═══════════════════════════════════════════════
+   EXCEL IMPORT MODAL
+═══════════════════════════════════════════════ */
+.xl-modal-box {
+  max-width: 780px;
+  max-height: 85vh;
+}
+.xl-drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--r-lg);
+  padding: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--tr);
+  background: var(--surface);
+}
+.xl-drop-zone:hover, .xl-drop-zone.drag-over {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+.xl-drop-icon { font-size: 2.5rem; color: rgba(212,168,83,.3); margin-bottom: .75rem; }
+.xl-drop-title { font-family: var(--ff-serif); font-size: 1rem; margin-bottom: .3rem; }
+.xl-drop-sub { font-size: .78rem; color: var(--text3); }
+
+.xl-preview {
+  display: none;
+  margin-top: 1rem;
+}
+.xl-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.xl-preview-title {
+  font-family: var(--ff-serif);
+  font-size: .95rem;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.xl-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  max-height: 340px;
+  overflow-y: auto;
+}
+.xl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+.xl-table th {
+  background: var(--surface);
+  color: var(--text3);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .65rem;
+  padding: .55rem .75rem;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.xl-table td {
+  padding: .5rem .75rem;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  color: var(--text2);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xl-table tr:hover td { background: rgba(212,168,83,.04); }
+.xl-table .row-new td { border-left: 2px solid var(--emerald); }
+.xl-table .row-update td { border-left: 2px solid var(--sapphire); }
+.xl-table .row-skip td { opacity: .45; }
+.xl-tag {
+  display: inline-block;
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: .1rem .38rem;
+  border-radius: 999px;
+  letter-spacing: .05em;
+}
+.xl-tag-new { background: var(--emerald-dim); color: var(--emerald); }
+.xl-tag-update { background: var(--sapphire-dim); color: var(--sapphire); }
+.xl-tag-skip { background: rgba(255,255,255,.06); color: var(--text3); }
+
+.xl-col-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: .6rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+.xl-col-map-item label {
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text3);
+  display: block;
+  margin-bottom: .3rem;
+}
+.xl-import-summary {
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+  margin-bottom: .75rem;
+}
+.xl-sum-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .78rem;
+  color: var(--text2);
+}
+.xl-sum-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Spinner */
+.spin {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(212,168,83,.05);
+  border: 1px solid rgba(212,168,83,.15);
+  border-radius: var(--r-md);
+  padding: .85rem 1.1rem;
+  margin-bottom: .85rem;
+}
+.xl-template-icon { font-size: 1.5rem; flex-shrink: 0; color: var(--gold); }
+.xl-template-info { flex: 1; min-width: 0; }
+.xl-template-title { font-weight: 600; font-size: .85rem; margin-bottom: .18rem; }
+.xl-template-sub { font-size: .74rem; color: var(--text3); }
+
 /* Spinner */
 .spin {
   display: inline-block;
@@ -1611,6 +1770,18 @@ body::before {
         </button>
         <button class="sb-status-btn s-paused" id="f-paused" onclick="setFilter('paused')">
           <span class="dot"></span> Bırakıldı <span class="sb-badge" style="background:var(--amber);color:var(--bg)" id="fPaused">0</span>
+        </button>
+        <button class="sb-status-btn" style="color:var(--violet)" id="f-owned" onclick="setFilter('owned')">
+          <span class="dot"></span> Sahip Olduklarım <span class="sb-badge" style="background:var(--violet);color:var(--bg)" id="fOwned">0</span>
+        </button>
+        <button class="sb-status-btn" style="color:var(--teal)" id="f-borrowed" onclick="setFilter('borrowed')">
+          <span class="dot"></span> Ödünç Aldıklarım <span class="sb-badge" style="background:var(--teal);color:var(--bg)" id="fBorrowed">0</span>
+        </button>
+        <button class="sb-status-btn" style="color:var(--rose)" id="f-lent" onclick="setFilter('lent')">
+          <span class="dot"></span> Ödünç Verdiklerim <span class="sb-badge" style="background:var(--rose);color:var(--bg)" id="fLent">0</span>
+        </button>
+        <button class="sb-status-btn" style="color:var(--slate)" id="f-wishlist" onclick="setFilter('wishlist')">
+          <span class="dot"></span> İstek Listem <span class="sb-badge" style="background:var(--slate);color:var(--bg)" id="fWishlist">0</span>
         </button>
       </div>
     </div>
@@ -1819,10 +1990,14 @@ body::before {
             <div class="f-group">
               <label>Okuma Durumu</label>
               <select id="f-status" class="sel" style="width:100%">
-                <option value="reading">📖 Okuyorum</option>
-                <option value="read">✅ Okudum</option>
+                <option value="reading">📖 Okunuyor</option>
+                <option value="read">✅ Okundu</option>
                 <option value="toread" selected>📚 Okuyacağım</option>
-                <option value="paused">⏸ Bıraktım</option>
+                <option value="paused">⏸ Bırakıldı</option>
+                <option value="owned">📦 Sahip Olduklarım</option>
+                <option value="borrowed">🤝 Ödünç Aldıklarım</option>
+                <option value="lent">↗️ Ödünç Verdiklerim</option>
+                <option value="wishlist">⭐ İstek Listem</option>
               </select>
             </div>
             <div class="f-group">
@@ -1872,7 +2047,7 @@ body::before {
         <div class="stat-card">
           <div class="stat-icon ic-emerald"><i class="fa-solid fa-check-circle"></i></div>
           <div class="stat-val" id="s-read">0</div>
-          <div class="stat-lbl">Tamamlandı</div>
+          <div class="stat-lbl">Okundu</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon ic-sapphire"><i class="fa-solid fa-book-open"></i></div>
@@ -1885,7 +2060,27 @@ body::before {
           <div class="stat-lbl">Bırakıldı</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon ic-gold"><i class="fa-solid fa-star"></i></div>
+          <div class="stat-icon" style="background:var(--violet-dim);color:var(--violet)"><i class="fa-solid fa-box"></i></div>
+          <div class="stat-val" id="s-owned">0</div>
+          <div class="stat-lbl">Sahip Olduğum</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-handshake"></i></div>
+          <div class="stat-val" id="s-borrowed">0</div>
+          <div class="stat-lbl">Ödünç Aldım</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--rose-dim);color:var(--rose)"><i class="fa-solid fa-share"></i></div>
+          <div class="stat-val" id="s-lent">0</div>
+          <div class="stat-lbl">Ödünç Verdim</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--slate-dim);color:var(--slate)"><i class="fa-solid fa-star"></i></div>
+          <div class="stat-val" id="s-wishlist">0</div>
+          <div class="stat-lbl">İstek Listesi</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon ic-gold"><i class="fa-solid fa-star-half-stroke"></i></div>
           <div class="stat-val" id="s-avgrating">—</div>
           <div class="stat-lbl">Ort. Puan</div>
         </div>
@@ -1907,17 +2102,25 @@ body::before {
                 <circle id="dc-reading" cx="18" cy="18" r="15.9155" fill="none" stroke="#4a7fd4" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
                 <circle id="dc-toread" cx="18" cy="18" r="15.9155" fill="none" stroke="#d4a853" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
                 <circle id="dc-paused" cx="18" cy="18" r="15.9155" fill="none" stroke="#f0a429" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+                <circle id="dc-owned" cx="18" cy="18" r="15.9155" fill="none" stroke="#9b72d4" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+                <circle id="dc-borrowed" cx="18" cy="18" r="15.9155" fill="none" stroke="#2ec4b6" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+                <circle id="dc-lent" cx="18" cy="18" r="15.9155" fill="none" stroke="#e8698a" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+                <circle id="dc-wishlist" cx="18" cy="18" r="15.9155" fill="none" stroke="#8899aa" stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
               </svg>
               <div class="donut-center">
                 <div class="donut-num" id="donTotal">0</div>
                 <div class="donut-label">toplam</div>
               </div>
             </div>
-            <div class="legend">
+            <div class="legend" style="gap:.35rem">
               <div class="legend-item"><div class="legend-dot" style="background:var(--emerald)"></div><span class="legend-text">Okundu</span><span class="legend-count" id="lg-read">0</span></div>
               <div class="legend-item"><div class="legend-dot" style="background:var(--sapphire)"></div><span class="legend-text">Okunuyor</span><span class="legend-count" id="lg-reading">0</span></div>
               <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div><span class="legend-text">Okuyacağım</span><span class="legend-count" id="lg-toread">0</span></div>
               <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div><span class="legend-text">Bırakıldı</span><span class="legend-count" id="lg-paused">0</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--violet)"></div><span class="legend-text">Sahip Olduğum</span><span class="legend-count" id="lg-owned">0</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div><span class="legend-text">Ödünç Aldım</span><span class="legend-count" id="lg-borrowed">0</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--rose)"></div><span class="legend-text">Ödünç Verdim</span><span class="legend-count" id="lg-lent">0</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--slate)"></div><span class="legend-text">İstek Listem</span><span class="legend-count" id="lg-wishlist">0</span></div>
             </div>
           </div>
         </div>
@@ -2024,28 +2227,60 @@ body::before {
       <div class="backup-grid">
         <div class="bk-card">
           <div class="bk-icon ic-gold"><i class="fa-solid fa-file-export"></i></div>
-          <div class="bk-title">Dışa Aktar</div>
-          <div class="bk-desc">Tüm kitaplığınızı ve aktivite geçmişinizi bir JSON dosyası olarak indirin.</div>
+          <div class="bk-title">JSON Yedek</div>
+          <div class="bk-desc">Tüm kitaplığınızı ve aktivite geçmişinizi eksiksiz JSON dosyası olarak indirin.</div>
           <div class="bk-info-row">
             <i class="fa-solid fa-circle-info"></i>
-            <span>Dosya: <strong id="bkBookCount">0</strong> kitap · <strong id="bkEventCount">0</strong> aktivite</span>
+            <span><strong id="bkBookCount">0</strong> kitap · <strong id="bkEventCount">0</strong> aktivite</span>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="exportData()"><i class="fa-solid fa-download"></i> Yedeği İndir (.json)</button>
+          <button class="btn btn-primary btn-sm" onclick="exportData()"><i class="fa-solid fa-download"></i> JSON İndir</button>
         </div>
 
         <div class="bk-card">
           <div class="bk-icon ic-sapphire"><i class="fa-solid fa-file-import"></i></div>
-          <div class="bk-title">İçe Aktar</div>
-          <div class="bk-desc">Daha önce aldığınız bir yedek dosyasını yükleyerek kitaplığınızı geri yükleyin.</div>
+          <div class="bk-title">JSON Yedekten Geri Yükle</div>
+          <div class="bk-desc">Daha önce aldığınız JSON yedek dosyasını yükleyerek tüm verileri geri getirin.</div>
           <div class="bk-info-row">
             <i class="fa-solid fa-triangle-exclamation" style="color:var(--amber)"></i>
-            <span>Mevcut veriler üzerine yazılır.</span>
+            <span>Mevcut tüm veriler üzerine yazılır.</span>
           </div>
           <input type="file" id="importInp" hidden accept=".json" onchange="importData(event)"/>
-          <button class="btn btn-sapphire btn-sm" onclick="document.getElementById('importInp').click()"><i class="fa-solid fa-upload"></i> Dosya Seç & Yükle</button>
+          <button class="btn btn-sapphire btn-sm" onclick="document.getElementById('importInp').click()"><i class="fa-solid fa-upload"></i> JSON Dosyası Seç</button>
         </div>
 
-        <div class="bk-card danger-card">
+        <div class="bk-card" style="border-color:rgba(78,203,135,.18);background:rgba(78,203,135,.02)">
+          <div class="bk-icon ic-emerald"><i class="fa-brands fa-microsoft"></i></div>
+          <div class="bk-title">Excel'e Aktar (.xlsx)</div>
+          <div class="bk-desc">Kitaplığınızı Excel tablosuna dönüştürün. Düzenleyip tekrar içe aktarabilirsiniz.</div>
+          <div class="bk-info-row">
+            <i class="fa-solid fa-table" style="color:var(--emerald)"></i>
+            <span>Tüm alanlar kolona dönüştürülür · Google Sheets'te de açılır</span>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="btn btn-sm" style="background:var(--emerald-dim);color:var(--emerald);border:1px solid rgba(78,203,135,.25)" onclick="exportExcel()">
+              <i class="fa-solid fa-file-excel"></i> Excel İndir
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadTemplate()">
+              <i class="fa-solid fa-download"></i> Şablon İndir
+            </button>
+          </div>
+        </div>
+
+        <div class="bk-card" style="border-color:rgba(74,127,212,.18);background:rgba(74,127,212,.02)">
+          <div class="bk-icon ic-sapphire"><i class="fa-solid fa-file-excel"></i></div>
+          <div class="bk-title">Excel'den İçe Aktar</div>
+          <div class="bk-desc">Excel dosyası yükleyin. Mevcut ISBN'ler güncellenir, yeniler eklenir. Tüm alanlar desteklenir.</div>
+          <div class="bk-info-row">
+            <i class="fa-solid fa-arrows-rotate" style="color:var(--sapphire)"></i>
+            <span>Akıllı birleştirme: mevcut kitapları günceller, yenilerini ekler</span>
+          </div>
+          <input type="file" id="xlImportInp" hidden accept=".xlsx,.xls,.csv" onchange="openExcelImport(event)"/>
+          <button class="btn btn-sapphire btn-sm" onclick="document.getElementById('xlImportInp').click()">
+            <i class="fa-solid fa-upload"></i> Excel Dosyası Seç
+          </button>
+        </div>
+
+        <div class="bk-card danger-card" style="grid-column:1/-1">
           <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
             <div class="bk-icon ic-ruby" style="flex-shrink:0"><i class="fa-solid fa-triangle-exclamation"></i></div>
             <div>
@@ -2069,6 +2304,58 @@ body::before {
       <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- EXCEL IMPORT MODAL -->
+<div class="modal-overlay" id="xlModal" onclick="closeXlModal()">
+  <div class="modal-box xl-modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-file-excel" style="color:var(--emerald)"></i> Excel İçe Aktarma</div>
+      <button class="modal-close" onclick="closeXlModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="xl-template-card">
+        <div class="xl-template-icon"><i class="fa-solid fa-download"></i></div>
+        <div class="xl-template-info">
+          <div class="xl-template-title">Hazır şablon indirin</div>
+          <div class="xl-template-sub">Doğru sütun başlıklarıyla hazırlanmış Excel şablonu. İndirin, doldurun, yükleyin.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadTemplate()"><i class="fa-solid fa-file-excel"></i> Şablon</button>
+      </div>
+
+      <div id="xlDropZone" class="xl-drop-zone" onclick="document.getElementById('xlImportInp2').click()"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleXlDrop(event)">
+        <input type="file" id="xlImportInp2" hidden accept=".xlsx,.xls,.csv" onchange="openExcelImport(event)"/>
+        <div class="xl-drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+        <div class="xl-drop-title">Dosyayı buraya sürükleyin veya tıklayın</div>
+        <div class="xl-drop-sub">.xlsx · .xls · .csv formatları desteklenir</div>
+      </div>
+
+      <div class="xl-preview" id="xlPreview">
+        <div class="xl-preview-header">
+          <div class="xl-preview-title"><i class="fa-solid fa-table"></i> <span id="xlPreviewTitle">Önizleme</span></div>
+          <div class="xl-import-summary" id="xlSummary"></div>
+        </div>
+        <div class="xl-table-wrap">
+          <table class="xl-table" id="xlTable">
+            <thead id="xlThead"></thead>
+            <tbody id="xlTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="xlActions" style="display:none;margin-top:1rem;display:none">
+        <div style="display:flex;gap:.65rem;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="closeXlModal()">İptal</button>
+          <button class="btn btn-primary" id="xlImportBtn" onclick="applyExcelImport()">
+            <i class="fa-solid fa-check"></i> <span id="xlImportBtnLabel">İçe Aktar</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2168,6 +2455,10 @@ function updateHeader() {
   const read = lib.filter(b => b.status === 'read').length;
   const toread = lib.filter(b => b.status === 'toread').length;
   const paused = lib.filter(b => b.status === 'paused').length;
+  const owned = lib.filter(b => b.status === 'owned').length;
+  const borrowed = lib.filter(b => b.status === 'borrowed').length;
+  const lent = lib.filter(b => b.status === 'lent').length;
+  const wishlist = lib.filter(b => b.status === 'wishlist').length;
 
   document.getElementById('hTotal').innerText = total;
   document.getElementById('hReading').innerText = reading;
@@ -2178,8 +2469,12 @@ function updateHeader() {
   document.getElementById('fRead').innerText = read;
   document.getElementById('fToread').innerText = toread;
   document.getElementById('fPaused').innerText = paused;
+  document.getElementById('fOwned').innerText = owned;
+  document.getElementById('fBorrowed').innerText = borrowed;
+  document.getElementById('fLent').innerText = lent;
+  document.getElementById('fWishlist').innerText = wishlist;
 
-  // Sidebar bars
+  // Sidebar mini bars (show reading + read + toread + paused)
   const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
   document.getElementById('qbReading').style.width = pct(reading) + '%';
   document.getElementById('qbRead').style.width = pct(read) + '%';
@@ -2636,10 +2931,14 @@ function openBook(id) {
         <div style="color:var(--amber);font-size:1.1rem;margin-bottom:.75rem">${stars}</div>
         <div class="detail-meta-label">DURUM</div>
         <select class="sel" style="font-size:.8rem;padding:.4rem .8rem;margin-top:.2rem" onchange="updateBStatus('${b.id}', this.value)">
-          <option value="reading" ${b.status==='reading'?'selected':''}>📖 Okuyorum</option>
-          <option value="read" ${b.status==='read'?'selected':''}>✅ Okudum</option>
+          <option value="reading" ${b.status==='reading'?'selected':''}>📖 Okunuyor</option>
+          <option value="read" ${b.status==='read'?'selected':''}>✅ Okundu</option>
           <option value="toread" ${b.status==='toread'?'selected':''}>📚 Okuyacağım</option>
-          <option value="paused" ${b.status==='paused'?'selected':''}>⏸ Bıraktım</option>
+          <option value="paused" ${b.status==='paused'?'selected':''}>⏸ Bırakıldı</option>
+          <option value="owned" ${b.status==='owned'?'selected':''}>📦 Sahip Olduğum</option>
+          <option value="borrowed" ${b.status==='borrowed'?'selected':''}>🤝 Ödünç Aldım</option>
+          <option value="lent" ${b.status==='lent'?'selected':''}>↗️ Ödünç Verdim</option>
+          <option value="wishlist" ${b.status==='wishlist'?'selected':''}>⭐ İstek Listem</option>
         </select>
       </div>
     </div>
@@ -2663,7 +2962,7 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeConfirm(false); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeConfirm(false); closeXlModal(); } });
 
 /* ═══════════════════════════════════════════════
    STATS
@@ -2674,18 +2973,24 @@ function updateStats() {
   const reading = lib.filter(b => b.status === 'reading').length;
   const toread = lib.filter(b => b.status === 'toread').length;
   const paused = lib.filter(b => b.status === 'paused').length;
+  const owned = lib.filter(b => b.status === 'owned').length;
+  const borrowed = lib.filter(b => b.status === 'borrowed').length;
+  const lent = lib.filter(b => b.status === 'lent').length;
+  const wishlist = lib.filter(b => b.status === 'wishlist').length;
 
   document.getElementById('s-total').innerText = total;
   document.getElementById('s-read').innerText = read;
   document.getElementById('s-reading').innerText = reading;
   document.getElementById('s-paused').innerText = paused;
+  document.getElementById('s-owned').innerText = owned;
+  document.getElementById('s-borrowed').innerText = borrowed;
+  document.getElementById('s-lent').innerText = lent;
+  document.getElementById('s-wishlist').innerText = wishlist;
 
-  // Avg rating
   const rated = lib.filter(b => b.rating > 0);
   const avg = rated.length > 0 ? (rated.reduce((s, b) => s + b.rating, 0) / rated.length).toFixed(1) : '—';
   document.getElementById('s-avgrating').innerText = avg;
 
-  // This month
   const now = new Date();
   const thisMonth = lib.filter(b => {
     const d = new Date(b.added);
@@ -2693,28 +2998,34 @@ function updateStats() {
   }).length;
   document.getElementById('s-thismonth').innerText = thisMonth;
 
-  // Donut chart
+  // Donut chart - all 8 statuses
   document.getElementById('donTotal').innerText = total;
-  document.getElementById('lg-read').innerText = read;
-  document.getElementById('lg-reading').innerText = reading;
-  document.getElementById('lg-toread').innerText = toread;
-  document.getElementById('lg-paused').innerText = paused;
+  const statCounts = { read, reading, toread, paused, owned, borrowed, lent, wishlist };
+  Object.entries(statCounts).forEach(([k, v]) => {
+    const el = document.getElementById('lg-' + k);
+    if (el) el.innerText = v;
+  });
 
   if (total > 0) {
-    const circ = 100; // 100 = full circle in stroke-dasharray terms
     const segments = [
-      { id: 'dc-read', n: read, color: '#3ecf7a' },
-      { id: 'dc-reading', n: reading, color: '#4a7fd4' },
-      { id: 'dc-toread', n: toread, color: '#d4a853' },
-      { id: 'dc-paused', n: paused, color: '#f0a429' }
+      { id: 'dc-read', n: read },
+      { id: 'dc-reading', n: reading },
+      { id: 'dc-toread', n: toread },
+      { id: 'dc-paused', n: paused },
+      { id: 'dc-owned', n: owned },
+      { id: 'dc-borrowed', n: borrowed },
+      { id: 'dc-lent', n: lent },
+      { id: 'dc-wishlist', n: wishlist }
     ];
     let offset = 0;
     segments.forEach(seg => {
-      const pct = (seg.n / total) * circ;
+      const pct = (seg.n / total) * 100;
       const el = document.getElementById(seg.id);
-      el.setAttribute('stroke-dasharray', `${pct} ${circ - pct}`);
-      el.setAttribute('stroke-dashoffset', -offset);
-      offset += pct;
+      if (el) {
+        el.setAttribute('stroke-dasharray', `${pct} ${100 - pct}`);
+        el.setAttribute('stroke-dashoffset', -offset);
+        offset += pct;
+      }
     });
   }
 
@@ -2725,13 +3036,12 @@ function updateStats() {
     trEl.innerHTML = '<div class="alog-empty" style="padding:1.5rem"><i class="fa-solid fa-star"></i>Henüz puanlı kitap yok.</div>';
   } else {
     trEl.innerHTML = '';
-    const maxR = 5;
     topRated.forEach(b => {
       const row = document.createElement('div');
       row.className = 'bar-row';
       row.innerHTML = `
         <div class="bar-label" title="${esc(b.title)}">${esc(b.title)}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(b.rating / maxR) * 100}%"></div></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(b.rating / 5) * 100}%"></div></div>
         <div class="bar-val">${b.rating}</div>
       `;
       trEl.appendChild(row);
@@ -2936,7 +3246,17 @@ function dismissToast(id) {
    HELPERS
 ═══════════════════════════════════════════════ */
 function statusText(s) {
-  return { reading: 'Okunuyor', read: 'Okundu', toread: 'Okuyacak', paused: 'Bırakıldı' }[s] || s;
+  return {
+    reading: 'Okunuyor', read: 'Okundu', toread: 'Okuyacak', paused: 'Bırakıldı',
+    owned: 'Sahip Olduğum', borrowed: 'Ödünç Aldım', lent: 'Ödünç Verdim', wishlist: 'İstek Listem'
+  }[s] || s;
+}
+
+function statusEmoji(s) {
+  return {
+    reading: '📖', read: '✅', toread: '📚', paused: '⏸',
+    owned: '📦', borrowed: '🤝', lent: '↗️', wishlist: '⭐'
+  }[s] || '';
 }
 
 function evText(t) {
@@ -2961,6 +3281,296 @@ function _dlText(content, filename, mime) {
   a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ═══════════════════════════════════════════════
+   EXCEL EXPORT / IMPORT
+═══════════════════════════════════════════════ */
+
+// Column definitions (key → Turkish label)
+const XL_COLS = [
+  { key: 'id',        label: 'ID',              width: 18 },
+  { key: 'title',     label: 'Kitap Adı',        width: 40 },
+  { key: 'author',    label: 'Yazar',            width: 30 },
+  { key: 'isbn',      label: 'ISBN',             width: 18 },
+  { key: 'publisher', label: 'Yayınevi',         width: 25 },
+  { key: 'pages',     label: 'Sayfa Sayısı',     width: 14 },
+  { key: 'status',    label: 'Durum',            width: 18 },
+  { key: 'rating',    label: 'Puan (1-5)',       width: 14 },
+  { key: 'note',      label: 'Notlar',           width: 45 },
+  { key: 'cover',     label: 'Kapak URL',        width: 40 },
+  { key: 'added',     label: 'Eklenme Tarihi',   width: 22 },
+];
+
+const STATUS_VALUES = 'reading | read | toread | paused | owned | borrowed | lent | wishlist';
+
+function exportExcel() {
+  if (!window.XLSX) { toast('Excel kütüphanesi yükleniyor, lütfen bekleyin.', 'warning'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Data sheet ──
+  const header = XL_COLS.map(c => c.label);
+  const rows = lib.map(b => XL_COLS.map(c => {
+    if (c.key === 'added') return b.added ? new Date(b.added).toLocaleDateString('tr-TR') : '';
+    return b[c.key] ?? '';
+  }));
+  const wsData = XLSX.utils.aoa_to_sheet([header, ...rows]);
+
+  // Column widths
+  wsData['!cols'] = XL_COLS.map(c => ({ wch: c.width }));
+
+  // Freeze top row
+  wsData['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+  XLSX.utils.book_append_sheet(wb, wsData, 'Kitaplık');
+
+  // ── Referans sheet ──
+  const refData = [
+    ['Alan', 'Açıklama', 'Geçerli Değerler'],
+    ['Durum', 'Kitabın durumu', STATUS_VALUES],
+    ['Puan (1-5)', 'Boş bırakılabilir', '1, 2, 3, 4, 5'],
+    ['ISBN', 'Tireli veya tiresiz', '9780000000000'],
+    ['ID', 'Güncelleme için gerekli', 'Değiştirmeyin'],
+    ['Eklenme Tarihi', 'Bilgi amaçlı', 'Değiştirmeyin'],
+  ];
+  const wsRef = XLSX.utils.aoa_to_sheet(refData);
+  wsRef['!cols'] = [{ wch: 20 }, { wch: 35 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, wsRef, 'Referans');
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `biblios_${dateStr}.xlsx`);
+  toast(`${lib.length} kitap Excel'e aktarıldı!`, 'success');
+}
+
+function downloadTemplate() {
+  if (!window.XLSX) { toast('Excel kütüphanesi yükleniyor...', 'warning'); return; }
+  const wb = XLSX.utils.book_new();
+  const header = XL_COLS.filter(c => c.key !== 'id' && c.key !== 'added').map(c => c.label);
+  const example = [
+    ['Suç ve Ceza', 'Fyodor Dostoyevski', '9789750726439', 'İş Bankası Kültür Yayınları', 687, 'read', 5, 'Muhteşem bir klasik.', ''],
+    ['Dune', 'Frank Herbert', '9789750726446', 'İthaki', 896, 'toread', '', 'Okumayı planlıyorum.', ''],
+  ];
+  const wsData = XLSX.utils.aoa_to_sheet([header, ...example]);
+  wsData['!cols'] = XL_COLS.filter(c => c.key !== 'id' && c.key !== 'added').map(c => ({ wch: c.width }));
+
+  const wsRef = XLSX.utils.aoa_to_sheet([
+    ['Durum Değerleri', ''],
+    ['reading', 'Okunuyor'],
+    ['read', 'Okundu'],
+    ['toread', 'Okuyacağım'],
+    ['paused', 'Bırakıldı'],
+    ['owned', 'Sahip Olduğum'],
+    ['borrowed', 'Ödünç Aldım'],
+    ['lent', 'Ödünç Verdim'],
+    ['wishlist', 'İstek Listesi'],
+  ]);
+  wsRef['!cols'] = [{ wch: 15 }, { wch: 25 }];
+
+  XLSX.utils.book_append_sheet(wb, wsData, 'Şablon');
+  XLSX.utils.book_append_sheet(wb, wsRef, 'Durum Referansı');
+  XLSX.writeFile(wb, 'biblios_sablon.xlsx');
+  toast('Şablon indiriliyor!', 'success');
+}
+
+// Excel data being imported (pending confirmation)
+let _xlPending = [];
+
+function handleXlDrop(event) {
+  event.preventDefault();
+  document.getElementById('xlDropZone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file) processXlFile(file);
+}
+
+function openExcelImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  processXlFile(file);
+  event.target.value = '';
+  // Open modal if not already open
+  document.getElementById('xlModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function processXlFile(file) {
+  if (!window.XLSX) { toast('Excel kütüphanesi henüz yüklenmedi.', 'error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const wsName = wb.SheetNames[0];
+      const ws = wb.Sheets[wsName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (!rows.length) { toast('Dosya boş veya okunamadı.', 'error'); return; }
+
+      // Map Turkish headers → internal keys
+      const colMap = {};
+      XL_COLS.forEach(c => { colMap[c.label] = c.key; });
+
+      // Also accept English keys directly
+      const validKeys = XL_COLS.map(c => c.key);
+      const validStatuses = ['reading','read','toread','paused','owned','borrowed','lent','wishlist'];
+
+      _xlPending = rows.map(row => {
+        const bk = {};
+        Object.entries(row).forEach(([col, val]) => {
+          const key = colMap[col] || (validKeys.includes(col) ? col : null);
+          if (key) bk[key] = String(val).trim();
+        });
+        return bk;
+      }).filter(bk => bk.title);
+
+      // Determine status for each row
+      _xlPending = _xlPending.map(bk => {
+        if (bk.status && !validStatuses.includes(bk.status)) bk.status = 'toread';
+        if (!bk.status) bk.status = 'toread';
+        bk.rating = Math.min(5, Math.max(0, parseInt(bk.rating) || 0));
+        bk.pages = parseInt(bk.pages) || 0;
+        return bk;
+      });
+
+      renderXlPreview(_xlPending);
+
+    } catch (err) {
+      console.error(err);
+      toast('Dosya işlenemedi: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderXlPreview(rows) {
+  const preview = document.getElementById('xlPreview');
+  const actions = document.getElementById('xlActions');
+  const summary = document.getElementById('xlSummary');
+  const thead = document.getElementById('xlThead');
+  const tbody = document.getElementById('xlTbody');
+
+  // Classify rows
+  const classified = rows.map(bk => {
+    const existing = lib.find(b =>
+      (bk.id && b.id === bk.id) ||
+      (bk.isbn && bk.isbn && b.isbn === bk.isbn)
+    );
+    return { bk, existing, action: existing ? 'update' : 'add' };
+  });
+
+  const newCount = classified.filter(r => r.action === 'add').length;
+  const updateCount = classified.filter(r => r.action === 'update').length;
+
+  // Summary
+  summary.innerHTML = `
+    <div class="xl-sum-item"><div class="xl-sum-dot" style="background:var(--emerald)"></div>${newCount} yeni kitap</div>
+    <div class="xl-sum-item"><div class="xl-sum-dot" style="background:var(--sapphire)"></div>${updateCount} güncelleme</div>
+    <div class="xl-sum-item"><div class="xl-sum-dot" style="background:rgba(255,255,255,.3)"></div>${rows.length} satır toplam</div>
+  `;
+
+  // Table header
+  thead.innerHTML = `<tr>
+    <th style="width:60px">İşlem</th>
+    <th>Kitap Adı</th>
+    <th>Yazar</th>
+    <th>ISBN</th>
+    <th>Durum</th>
+    <th>Puan</th>
+    <th>Sayfa</th>
+  </tr>`;
+
+  // Table rows
+  tbody.innerHTML = '';
+  classified.forEach(({ bk, existing, action }) => {
+    const tr = document.createElement('tr');
+    tr.className = action === 'add' ? 'row-new' : 'row-update';
+    tr.innerHTML = `
+      <td><span class="xl-tag ${action === 'add' ? 'xl-tag-new' : 'xl-tag-update'}">${action === 'add' ? 'YENİ' : 'GÜNCELLE'}</span></td>
+      <td title="${esc(bk.title)}">${esc(bk.title)}</td>
+      <td>${esc(bk.author || '—')}</td>
+      <td style="font-family:var(--ff-mono);font-size:.7rem">${esc(bk.isbn || '—')}</td>
+      <td><span class="badge b-${bk.status}">${statusText(bk.status)}</span></td>
+      <td>${bk.rating ? '★'.repeat(bk.rating) : '—'}</td>
+      <td>${bk.pages || '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('xlPreviewTitle').innerText = `${rows.length} satır önizleme`;
+  document.getElementById('xlImportBtnLabel').innerText = `${newCount} Ekle + ${updateCount} Güncelle`;
+
+  preview.style.display = 'block';
+  actions.style.display = 'block';
+  document.getElementById('xlDropZone').style.display = 'none';
+
+  // Store classified for apply step
+  window._xlClassified = classified;
+}
+
+function applyExcelImport() {
+  if (!window._xlClassified || !window._xlClassified.length) return;
+
+  let added = 0, updated = 0;
+
+  window._xlClassified.forEach(({ bk, existing, action }) => {
+    if (action === 'add') {
+      const newBk = {
+        id: 'b' + Date.now() + Math.random().toString(36).slice(2,6),
+        title: bk.title,
+        author: bk.author || '',
+        isbn: bk.isbn || '',
+        publisher: bk.publisher || '',
+        pages: bk.pages || 0,
+        cover: bk.cover || '',
+        status: bk.status || 'toread',
+        rating: bk.rating || 0,
+        note: bk.note || '',
+        added: Date.now()
+      };
+      lib.push(newBk);
+      addEvent('add', newBk.id, newBk.title);
+      added++;
+    } else if (action === 'update' && existing) {
+      // Merge: only overwrite fields that are present in the Excel row
+      if (bk.title) existing.title = bk.title;
+      if (bk.author) existing.author = bk.author;
+      if (bk.isbn) existing.isbn = bk.isbn;
+      if (bk.publisher) existing.publisher = bk.publisher;
+      if (bk.pages) existing.pages = bk.pages;
+      if (bk.cover) existing.cover = bk.cover;
+      if (bk.status) existing.status = bk.status;
+      if (bk.rating) existing.rating = bk.rating;
+      if (bk.note) existing.note = bk.note;
+      addEvent('update', existing.id, existing.title);
+      updated++;
+    }
+  });
+
+  save();
+  closeXlModal();
+  toast(`✅ ${added} kitap eklendi · ${updated} kitap güncellendi`, 'success');
+  nav('library');
+}
+
+function openXlModal() {
+  document.getElementById('xlModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Reset state
+  document.getElementById('xlPreview').style.display = 'none';
+  document.getElementById('xlActions').style.display = 'none';
+  document.getElementById('xlDropZone').style.display = 'block';
+  window._xlClassified = [];
+  _xlPending = [];
+}
+
+function closeXlModal() {
+  document.getElementById('xlModal').classList.remove('open');
+  document.body.style.overflow = '';
+  // Reset for next use
+  document.getElementById('xlPreview').style.display = 'none';
+  document.getElementById('xlActions').style.display = 'none';
+  document.getElementById('xlDropZone').style.display = 'block';
+  window._xlClassified = [];
 }
 
 /* ═══════════════════════════════════════════════
